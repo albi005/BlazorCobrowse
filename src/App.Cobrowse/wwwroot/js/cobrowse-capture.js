@@ -319,6 +319,18 @@ function applyKey(el, ev) {
       code: String(ev.code ?? ''),
       bubbles: true
     }));
+
+    // Space/Enter activate buttons, checkboxes, radios and links natively.
+    const tag = el.tagName;
+    const activates = tag === 'BUTTON' || tag === 'SUMMARY' || tag === 'A' ||
+      (tag === 'INPUT' && ['checkbox', 'radio', 'button', 'submit', 'reset'].includes(el.type));
+    if (activates && (key === 'Enter' || key === ' ')) {
+      try {
+        el.click();
+      } catch {
+        // Detached or inert.
+      }
+    }
     return;
   }
 

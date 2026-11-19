@@ -38,13 +38,19 @@ Working and verified end to end:
   element the agent is working in. Typing mirrors live because rrweb records
   `input` (sampling `input: 0`), not just `change`. A dropdown opens its native
   popup in the mirror; the chosen option is forwarded to the customer's
-  `<select>`.
+  `<select>`. A range stays native too (the thumb follows the agent's pointer)
+  and its value is forwarded, coalesced to one update per 40ms.
+- Every sample control round-trips in both directions: counter buttons and
+  Reset, checkbox, radio, select, range, name/notes typing, list add/remove,
+  Submit feedback and the "Send text" toolbar. `scripts/verify-interactions.js`
+  asserts the customer state and the mirrored state after each action.
 - The sample app has interactive controls (input, textarea, select, checkbox,
   radio, range, list, submit summary) plus scroll-test filler.
 
-Verified with `scripts/verify-scroll-sync.js` across three viewport pairings:
-same size, agent smaller than customer, agent larger than customer. All checks
-pass with no console errors.
+Verified end to end: `verify-scroll-sync.js` across three viewport pairings
+(same size, agent smaller, agent larger), `verify-input-sync.js` for typing and
+`verify-interactions.js` for every control in both directions. All checks pass
+with no console errors.
 
 ## Running it
 
@@ -78,12 +84,15 @@ cd scripts
 npm install          # once; playwright is not committed
 node verify-scroll-sync.js
 node verify-input-sync.js
+node verify-interactions.js
 ```
 
 `verify-input-sync.js` checks agent -> customer typing: click focus, live
 binding, arrows and mid-field insertion, Ctrl+A, Backspace, Enter (input vs
-textarea) and the mirrored value. On NixOS the bundled Playwright Chromium may
-lack system libraries; run it under `nix shell nixpkgs#chromium` and pass
+textarea), select and the mirrored value. `verify-interactions.js` walks every
+sample control in both directions (buttons, checkbox, radio, select, range,
+list add/remove, submit, Send text). On NixOS the bundled Playwright Chromium
+may lack system libraries; run them under `nix shell nixpkgs#chromium` and pass
 `CHROMIUM_PATH=$(command -v chromium)`.
 
 Environment overrides: `APP_URL`, `AGENT_URL`, `SERVICE_URL`, `TENANT_ID`,
@@ -176,6 +185,7 @@ Ordered by likely value:
 | `docs/compatibility.md` | Versioning rules for independently deployed tenants |
 | `scripts/verify-scroll-sync.js` | End-to-end scroll/cursor check |
 | `scripts/verify-input-sync.js` | End-to-end agent -> customer input check |
+| `scripts/verify-interactions.js` | Every sample control, both directions |
 
 ## PoC reference
 

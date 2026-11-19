@@ -497,11 +497,12 @@ window.cobrowseAgent = (function () {
     const onResize = () => fitMirror();
     const onClick = (event) => {
       const target = taggedNode(event.target);
+      const inputType = target?.tagName === 'INPUT' ? target.type : '';
 
-      // A native dropdown has to open in the mirror: the customer's popup is
-      // browser chrome the agent cannot see or click. Let the mirror's select
-      // run, then forward the chosen option from `change` below.
-      if (target?.tagName === 'SELECT') {
+      // Native controls keep their own behaviour in the mirror. A dropdown has
+      // to open its popup; a range has to move under the pointer. The chosen
+      // value is forwarded from `change` / the coalesced `input` below.
+      if (target?.tagName === 'SELECT' || inputType === 'range') {
         selectTarget(target);
         return;
       }
@@ -528,6 +529,23 @@ window.cobrowseAgent = (function () {
           : target.value;
         sendControl(target.getAttribute('data-cb-id'), 'setValue', values);
       }
+    };
+
+    // Dragging a range fires a burst of input events. Send the latest value
+    // per node at most every 40ms so the customer's thumb tracks the agent's
+    // without flooding the hub.
+    let rangeTimer = null;
+    const pendingRange = new Map();
+    const flushRanges = () => {
+      rangeTimer = null;
+      for (const [nodeId, value] of pendingRange) sendControl(nodeId, 'setValue', value);
+      pendingRange.clear();
+    };
+    const onInput = (event) => {
+      const target = taggedNode(event.target);
+      if (!target || target.tagName !== 'INPUT' || target.type !== 'range') return;
+      pendingRange.set(target.getAttribute('data-cb-id'), target.value);
+      rangeTimer ??= setTimeout(flushRanges, 40);
     };
     const onSubmit = (event) => event.preventDefault();
     const onMouseMove = (event) => {
@@ -598,6 +616,10 @@ window.cobrowseAgent = (function () {
       // pressed outside an editable element drive the scroll shortcuts.
       const field = isEditable(event.target) ? taggedNode(event.target) : null;
       if (field) {
+        // A focused range owns its arrows/Home/End natively; the coalesced
+        // input handler forwards the resulting value.
+        if (field.tagName === 'INPUT' && field.type === 'range') return;
+
         // Not a relayed key (Shift, Tab, F-key) is still not a scroll key: the
         // field owns the keyboard while it has focus.
         if (forwardKey(event, field) && selectedNode !== field.getAttribute('data-cb-id')) {
@@ -645,6 +667,7 @@ window.cobrowseAgent = (function () {
     doc.addEventListener('keydown', onKeyDown, true);
     doc.addEventListener('paste', onPaste, true);
     doc.addEventListener('change', onChange, true);
+    doc.addEventListener('input', onInput, true);
 
     detachControls = () => {
       window.removeEventListener('resize', onResize);
@@ -659,6 +682,10 @@ window.cobrowseAgent = (function () {
       doc.removeEventListener('keydown', onKeyDown, true);
       doc.removeEventListener('paste', onPaste, true);
       doc.removeEventListener('change', onChange, true);
+      doc.removeEventListener('input', onInput, true);
+      if (rangeTimer) clearTimeout(rangeTimer);
+      rangeTimer = null;
+      pendingRange.clear();
     };
   }
 
