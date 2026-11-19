@@ -83,7 +83,11 @@ class CobrowseSession {
     this.banner = null;
     this.heartbeat = null;
     this.debugEvents = [];
+    this.flushQueued = false;
     this.onPageHide = () => this.endFromPageHide();
+    this.onVisibility = () => {
+      if (document.hidden) this.flush();
+    };
   }
 
   async start() {
@@ -102,6 +106,7 @@ class CobrowseSession {
     await this.join();
 
     window.addEventListener('pagehide', this.onPageHide);
+    document.addEventListener('visibilitychange', this.onVisibility);
     this.heartbeat = setInterval(() => {
       if (this.connection?.state === window.signalR.HubConnectionState.Connected) {
         this.connection.send('Ping').catch(() => { /* best effort */ });
@@ -236,8 +241,26 @@ class CobrowseSession {
     if (this.debugEvents.length > 20) this.debugEvents.shift();
 
     this.buffer.push(event);
-    if (this.buffer.length >= MAX_BATCH_SIZE) this.flush();
-    else if (!this.flushTimer) {
+    if (this.buffer.length >= MAX_BATCH_SIZE) {
+      this.flush();
+      return;
+    }
+
+    // Browsers throttle timers to ~1s in a hidden/occluded tab. Feedback then
+    // stalls: the agent's click applies at once but the events that prove it
+    // wait for the batcher. A microtask is not throttled, so flush there.
+    if (document.hidden) {
+      if (!this.flushQueued) {
+        this.flushQueued = true;
+        queueMicrotask(() => {
+          this.flushQueued = false;
+          this.flush();
+        });
+      }
+      return;
+    }
+
+    if (!this.flushTimer) {
       this.flushTimer = setTimeout(() => this.flush(), FLUSH_INTERVAL_MS);
     }
   }
@@ -308,6 +331,7 @@ class CobrowseSession {
     hideAgentCursor();
     this.removeBanner();
     window.removeEventListener('pagehide', this.onPageHide);
+    document.removeEventListener('visibilitychange', this.onVisibility);
 
     const connection = this.connection;
     this.connection = null;

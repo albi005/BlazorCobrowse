@@ -266,6 +266,23 @@ const mirrorState = (frame) => frame.evaluate(() => ({
     check('customer counter is mirrored', ms.counter, '− 1 + Reset');
     check('customer list add is mirrored', ms.items.join('|'), 'Second item|Third item|Fourth item');
 
+    // Hidden/occluded tabs have their 60ms timers clamped to ~1s. The batcher
+    // must flush from a microtask there, or agent feedback takes a second.
+    console.log('\n--- hidden tab latency ---');
+    await customer.evaluate(() => {
+      const orig = window.setTimeout;
+      window.setTimeout = (fn, ms, ...args) => orig(fn, ms === 60 ? 1000 : ms, ...args);
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    });
+    const startedAt = Date.now();
+    await mf.getByRole('button', { name: '+', exact: true }).click();
+    const arrived = await until(async () => (await mirrorState(mf)).counter === '− 2 + Reset', 1500)
+      .catch(() => null);
+    const elapsed = Date.now() - startedAt;
+    check('feedback survives a throttled hidden tab', !!arrived, true);
+    check('hidden-tab feedback is not delayed to 1s', elapsed < 500, true);
+
     check('no console errors', errors.join(' | '), '');
   } catch (error) {
     failures.push(error.stack ?? String(error));

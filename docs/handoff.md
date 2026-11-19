@@ -144,6 +144,12 @@ The script checks:
   multi-select. `contenteditable`, cross-origin iframes and file pickers are
   still click-only. Ctrl+C / Ctrl+X stay local to the agent's mirror; Ctrl+V
   forwards the agent's clipboard text.
+- **Hidden tabs throttle the batcher.** Browsers clamp a hidden/occluded tab's
+  60ms timers to ~1s, which made agent feedback look like a one-second round
+  trip. `queueEvent` now flushes from a microtask (not throttled) when
+  `document.hidden`, and `visibilitychange` flushes any pending batch. If
+  feedback is slow, check whether the customer window is fully behind another
+  window. Visible tabs batch at `FLUSH_INTERVAL_MS` (60ms).
 - **Background logs** from the long-running dev servers, if still present:
   `/tmp/opencode/cobrowse-app.log`, `/tmp/opencode/cobrowse-service.log`.
 
