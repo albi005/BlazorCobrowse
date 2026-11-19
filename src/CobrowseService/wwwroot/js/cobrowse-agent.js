@@ -20,12 +20,11 @@ window.cobrowseAgent = (function () {
   let customerOnline = false;
   let finished = false;
   let assetsLoading = null;
-  let suppressScrollUntil = 0;
-  let agentScrollIntentUntil = 0;
-  let agentSentScrollUntil = 0;
-  let lastScrollSent = 0;
-  let scrollSettleTimer = null;
-  let pointerDown = false;
+  // Scroll sync is relative, like the PoC: the agent sends deltas and the
+  // customer applies them with scrollBy. The mirror is then driven by the
+  // customer's replayed scroll, so there is only one source of truth.
+  let scrollFlushTimer = null;
+  let pendingScroll = new Map();
   let lastCursorSent = 0;
   let lastCursor = null;
   let attachedDoc = null;
@@ -100,13 +99,9 @@ window.cobrowseAgent = (function () {
     pending = [];
     queue = [];
     ready = false;
-    suppressScrollUntil = 0;
-    agentScrollIntentUntil = 0;
-    agentSentScrollUntil = 0;
-    lastScrollSent = 0;
-    clearTimeout(scrollSettleTimer);
-    scrollSettleTimer = null;
-    pointerDown = false;
+    clearTimeout(scrollFlushTimer);
+    scrollFlushTimer = null;
+    pendingScroll = new Map();
     lastCursor = null;
     lastCursorSent = 0;
     const mirror = el('cb-mirror');
@@ -221,22 +216,9 @@ window.cobrowseAgent = (function () {
   }
 
   function apply(event) {
-    const now = performance.now();
-    const isScroll = event.type === 3 && event.source === 3;
-
-    // While the agent is driving the scroll, the customer's own scroll events
-    // are just echoes of the position we already sent. Applying them would
-    // nudge the mirror back and start a ping-pong loop.
-    if (isScroll && now < agentSentScrollUntil) return;
-
-    // rrweb EventType.Incremental = 3, IncrementalSource.Scroll = 3. Applying
-    // the customer's scroll to the mirror fires the mirror's own scroll
-    // listener a moment later. Suppress forwarding for a short window; the
-    // gesture gate below is what actually stops replay echoes.
-    if (isScroll) {
-      suppressScrollUntil = now + 250;
-    }
-
+    // The mirror is only ever driven by the customer's stream. Agent scrolls
+    // are sent as relative commands and never move the mirror locally, so
+    // replaying a scroll here cannot bounce back as another command.
     if (event.type === 3) {
       replayer.addEvent({ ...event, timestamp: 0 });
     } else {
@@ -313,30 +295,29 @@ window.cobrowseAgent = (function () {
     shell.style.height = `${Math.min(window.innerHeight * 0.7, height * scale)}px`;
   }
 
-  function sendScroll(doc, target) {
-    const scroller = target && target.nodeType === 1
-      ? target
-      : (doc.scrollingElement || doc.documentElement);
-    if (!scroller) return;
+  function queueScroll(nodeId, dx, dy) {
+    if (!dx && !dy) return;
+    const key = nodeId || '';
+    const pending = pendingScroll.get(key) ?? { nodeId: key, x: 0, y: 0 };
+    pending.x += dx;
+    pending.y += dy;
+    pendingScroll.set(key, pending);
 
-    const isPage = !target || target === doc || target === doc.documentElement || target === doc.body;
-    const nodeId = isPage ? '' : (target.getAttribute('data-cb-id') || '');
-    const maxTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
-    const maxLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
-
-    connection?.invoke('Control', {
-      requestId,
-      nodeId,
-      action: 'scrollTo',
-      value: JSON.stringify({
-        top: scroller.scrollTop,
-        left: scroller.scrollLeft,
-        maxTop,
-        maxLeft,
-        vw: scroller.clientWidth,
-        vh: scroller.clientHeight
-      })
-    }).catch((error) => console.warn('[cobrowse] scrollTo failed', error));
+    if (scrollFlushTimer) return;
+    scrollFlushTimer = setTimeout(() => {
+      scrollFlushTimer = null;
+      const batch = [...pendingScroll.values()];
+      pendingScroll.clear();
+      for (const entry of batch) {
+        if (!entry.x && !entry.y) continue;
+        connection?.invoke('Control', {
+          requestId,
+          nodeId: entry.nodeId,
+          action: 'scroll',
+          value: JSON.stringify({ top: entry.y, left: entry.x })
+        }).catch((error) => console.warn('[cobrowse] scroll failed', error));
+      }
+    }, 40);
   }
 
   function sendCursor(doc, force = false) {
@@ -393,56 +374,55 @@ window.cobrowseAgent = (function () {
       lastCursor = { x: event.clientX, y: event.clientY };
       sendCursor(doc);
     };
-    const markScrollIntent = () => { agentScrollIntentUntil = performance.now() + 800; };
-    const onWheel = () => markScrollIntent();
-    const onTouchMove = () => markScrollIntent();
-    const onPointerDown = () => { pointerDown = true; markScrollIntent(); };
-    const onPointerUp = () => { pointerDown = false; };
-    const onKeyDown = (event) => {
-      if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) {
-        markScrollIntent();
-      }
-    };
-    const onScroll = (event) => {
-      const scroller = doc.scrollingElement || doc.documentElement;
-      const target = event.target;
-      const isPage = target === doc || target === doc.documentElement || target === scroller;
-
+    const onScroll = () => {
       // The pointer's viewport position does not change when the mirror
       // scrolls, but its document position does. Refresh the dot so it stays
-      // under the agent's pointer.
+      // under the agent's pointer. Scroll commands are only sent from the
+      // wheel/touch/key handlers, never from this replay-driven event.
       sendCursor(doc, true);
+    };
 
-      const now = performance.now();
-      if (now < suppressScrollUntil) return;
+    // Wheel, touch and scroll keys are sent as relative deltas and the native
+    // scroll is suppressed. The mirror is then driven only by the customer's
+    // replayed scroll, so the two sides cannot fight over the position.
+    const onWheel = (event) => {
+      event.preventDefault();
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? doc.documentElement.clientHeight : 1;
+      lastCursor = { x: event.clientX, y: event.clientY };
+      sendCursor(doc);
+      queueScroll('', event.deltaX * unit, event.deltaY * unit);
+    };
 
-      // Only forward scrolls the agent actually initiated. rrweb replaying the
-      // customer's scroll also fires scroll events; forwarding those would
-      // bounce the position back and forth between the two sides.
-      if (pointerDown) markScrollIntent();
-      if (now > agentScrollIntentUntil) return;
+    let touchLast = null;
+    const onTouchStart = (event) => {
+      const touch = event.touches[0];
+      if (touch) touchLast = { x: touch.clientX, y: touch.clientY };
+    };
+    const onTouchMove = (event) => {
+      const touch = event.touches[0];
+      if (!touch || !touchLast) return;
+      event.preventDefault();
+      const dx = touchLast.x - touch.clientX;
+      const dy = touchLast.y - touch.clientY;
+      touchLast = { x: touch.clientX, y: touch.clientY };
+      lastCursor = { x: touch.clientX, y: touch.clientY };
+      sendCursor(doc);
+      queueScroll('', dx, dy);
+    };
+    const onTouchEnd = () => { touchLast = null; };
 
-      // Throttle the outgoing stream. A smooth wheel scroll fires dozens of
-      // events; sending each one makes the two sides chase each other.
-      if (now - lastScrollSent < 80) return;
-      lastScrollSent = now;
-      agentSentScrollUntil = now + 1000;
-      // Consume the gesture intent. A wheel or pointer event re-arms it for
-      // the next step, so one gesture cannot keep forwarding replay echoes.
-      agentScrollIntentUntil = 0;
-
-      sendScroll(doc, isPage ? null : target);
-
-      // Send the final resting position once the scroll stops. The throttled
-      // sends above can stop one step short of where the mirror actually
-      // landed, which leaves the customer visibly offset.
-      clearTimeout(scrollSettleTimer);
-      scrollSettleTimer = setTimeout(() => {
-        const live = replayer?.iframe?.contentDocument;
-        if (!live) return;
-        agentSentScrollUntil = performance.now() + 1000;
-        sendScroll(live);
-      }, 150);
+    const onKeyDown = (event) => {
+      const scroller = doc.scrollingElement || doc.documentElement;
+      let dy = 0;
+      if (event.key === 'ArrowDown') dy = 40;
+      else if (event.key === 'ArrowUp') dy = -40;
+      else if (event.key === 'PageDown' || event.key === ' ') dy = scroller.clientHeight * 0.9;
+      else if (event.key === 'PageUp') dy = -scroller.clientHeight * 0.9;
+      else if (event.key === 'Home') dy = -scroller.scrollHeight;
+      else if (event.key === 'End') dy = scroller.scrollHeight;
+      if (!dy) return;
+      event.preventDefault();
+      queueScroll('', 0, dy);
     };
 
     window.addEventListener('resize', onResize);
@@ -450,10 +430,10 @@ window.cobrowseAgent = (function () {
     doc.addEventListener('submit', onSubmit, true);
     doc.addEventListener('mousemove', onMouseMove, true);
     doc.addEventListener('scroll', onScroll, true);
-    doc.addEventListener('wheel', onWheel, { passive: true, capture: true });
-    doc.addEventListener('touchmove', onTouchMove, { passive: true, capture: true });
-    doc.addEventListener('pointerdown', onPointerDown, true);
-    doc.addEventListener('pointerup', onPointerUp, true);
+    doc.addEventListener('wheel', onWheel, { passive: false, capture: true });
+    doc.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
+    doc.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
+    doc.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
     doc.addEventListener('keydown', onKeyDown, true);
 
     detachControls = () => {
@@ -463,9 +443,9 @@ window.cobrowseAgent = (function () {
       doc.removeEventListener('mousemove', onMouseMove, true);
       doc.removeEventListener('scroll', onScroll, true);
       doc.removeEventListener('wheel', onWheel, true);
+      doc.removeEventListener('touchstart', onTouchStart, true);
       doc.removeEventListener('touchmove', onTouchMove, true);
-      doc.removeEventListener('pointerdown', onPointerDown, true);
-      doc.removeEventListener('pointerup', onPointerUp, true);
+      doc.removeEventListener('touchend', onTouchEnd, true);
       doc.removeEventListener('keydown', onKeyDown, true);
     };
   }
@@ -489,37 +469,17 @@ window.cobrowseAgent = (function () {
   function scrollDown() {
     const doc = replayer?.iframe?.contentDocument;
     const scroller = doc?.scrollingElement || doc?.documentElement;
-    if (!scroller) {
-      // No mirror yet; fall back to the relative protocol.
-      connection?.invoke('Control', {
-        requestId,
-        nodeId: '',
-        action: 'scroll',
-        value: '600'
-      }).catch((error) => console.warn('[cobrowse] scroll failed', error));
-      return;
-    }
+    const step = Math.max(200, Math.round((scroller?.clientHeight || 700) * 0.8));
 
-    // Scroll the mirror and the customer to the same position. The mirror's
-    // scroll listener is suppressed so it does not send a duplicate.
-    const step = Math.max(200, Math.round(scroller.clientHeight * 0.8));
-    suppressScrollUntil = performance.now() + 250;
-    agentScrollIntentUntil = 0;
-    agentSentScrollUntil = performance.now() + 1000;
-    lastScrollSent = performance.now();
-    scroller.scrollTop += step;
-    sendCursor(doc, true);
-    sendScroll(doc);
-
-    // The browser may settle the scroll position after the synchronous write.
-    // Send the resting position so the customer does not stop one step short.
-    clearTimeout(scrollSettleTimer);
-    scrollSettleTimer = setTimeout(() => {
-      const live = replayer?.iframe?.contentDocument;
-      if (!live) return;
-      agentSentScrollUntil = performance.now() + 1000;
-      sendScroll(live);
-    }, 150);
+    // Relative scroll, exactly like the PoC. The customer scrolls; rrweb
+    // replays that scroll into the mirror, so the mirror follows without a
+    // second, competing position message.
+    connection?.invoke('Control', {
+      requestId,
+      nodeId: '',
+      action: 'scroll',
+      value: JSON.stringify({ top: step, left: 0 })
+    }).catch((error) => console.warn('[cobrowse] scroll failed', error));
   }
 
   async function end() {

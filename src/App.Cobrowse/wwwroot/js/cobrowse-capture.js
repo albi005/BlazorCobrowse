@@ -158,11 +158,17 @@ function flash(el) {
 /** Apply one control command from the agent. Consent is enforced server-side too. */
 export function applyControl(nodeId, action, value) {
   if (action === 'scroll') {
-    // Protocol 1 relative scroll. Kept for older agents.
+    // Relative scroll, the same protocol the PoC used. The value is either a
+    // bare number (legacy) or a JSON object { top, left }. Relative deltas
+    // cannot fight each other the way absolute positions do.
+    const delta = parseScrollTarget(value);
+    if (!delta) return;
+
+    const top = Number(delta.top) || 0;
+    const left = Number(delta.left) || 0;
     const el = nodeId ? resolve(nodeId) : null;
-    const amount = Number(value) || 0;
-    if (el) el.scrollBy({ top: amount, left: 0, behavior: 'auto' });
-    else window.scrollBy({ top: amount, left: 0, behavior: 'auto' });
+    if (el) el.scrollBy({ top, left, behavior: 'smooth' });
+    else window.scrollBy({ top, left, behavior: 'smooth' });
     return;
   }
 
