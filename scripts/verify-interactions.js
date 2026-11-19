@@ -150,6 +150,13 @@ const mirrorState = (frame) => frame.evaluate(() => ({
     const { customer, agent, mirrorFrame: mf, errors } = session;
 
     console.log('\n--- customer cursor ---');
+    const relativeTime = agent.locator('cb-relative-time').first();
+    await relativeTime.waitFor({ timeout: 5000 });
+    const tickBefore = (await relativeTime.innerText()).trim();
+    await agent.waitForTimeout(1600);
+    const tickAfter = (await relativeTime.innerText()).trim();
+    check('relative time updates live', tickBefore !== tickAfter, true);
+
     await customer.mouse.move(520, 320);
     // rrweb samples mousemove every 50ms and drops the trailing sample.
     await agent.waitForTimeout(120);

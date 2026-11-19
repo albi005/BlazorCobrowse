@@ -50,7 +50,7 @@
                                 <div class="session-page" title="@PageLabel(activeRequest)">@PageLabel(activeRequest)</div>
                                 @if (activeRequest.AcceptedAt is { } accepted)
                                 {
-                                    <div class="session-meta">accepted @FormatAge(accepted) ago</div>
+                                    <div class="session-meta">accepted <cb-relative-time since="@Iso(accepted)">@FormatAge(accepted)</cb-relative-time> ago</div>
                                 }
 
                                 <div class="status-row compact">
@@ -94,7 +94,7 @@
                                     {
                                         <div class="session-note">@request.Note</div>
                                     }
-                                    <div class="session-meta">waiting @FormatAge(request.CreatedAt)</div>
+                                    <div class="session-meta">waiting <cb-relative-time since="@Iso(request.CreatedAt)">@FormatAge(request.CreatedAt)</cb-relative-time></div>
                                 </div>
                                 <div class="session-actions">
                                     <md-filled-tonal-button class="cb-accept"
@@ -129,7 +129,7 @@
                                     <div class="session-page" title="@PageLabel(request)">@PageLabel(request)</div>
                                     @if (request.AcceptedAt is { } accepted)
                                     {
-                                        <div class="session-meta">accepted @FormatAge(accepted) ago</div>
+                                        <div class="session-meta">accepted <cb-relative-time since="@Iso(accepted)">@FormatAge(accepted)</cb-relative-time> ago</div>
                                     }
                                 </div>
                                 <div class="session-actions">
@@ -211,6 +211,9 @@
 
     private static string PageLabel(SupportRequestSnapshot request) =>
         request.Page?.Title ?? request.Page?.Url ?? "—";
+
+    private static string Iso(DateTimeOffset value) =>
+        value.ToUniversalTime().ToString("o");
 
     private void Refresh()
     {

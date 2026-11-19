@@ -5,6 +5,7 @@
     "": {
       "dependencies": {
         "@material/web": "^2.3.0",
+        "lit": "^3.3.0",
       },
     },
   },

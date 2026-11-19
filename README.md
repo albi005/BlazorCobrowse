@@ -55,7 +55,10 @@ The service UI is built from [Material Web](https://github.com/material-componen
 custom elements (`md-filled-button`, `md-outlined-text-field`, …) on a small
 Material 3 token layer in `src/CobrowseService/wwwroot/css/theme.css`.
 
-The component bundle is generated from `src/CobrowseService/ui/material.ts`:
+The component bundle is generated from `src/CobrowseService/ui/material.ts`.
+Custom Lit elements live in `src/CobrowseService/ui/components/` (for example
+`cb-relative-time`, the live "accepted 0m 38s ago" label) and are imported from
+`material.ts` like the Material components:
 
 ```bash
 cd src/CobrowseService/ui

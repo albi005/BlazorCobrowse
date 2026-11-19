@@ -56,6 +56,9 @@ Working and verified end to end:
   replaces the template sidebar. The agent console has a dense session list on
   the left and the mirror on the right; the status pills and End session live
   in the active session card, and the tools sit under the mirror.
+- Relative times in the session list (``accepted … ago``, ``waiting …``) are a
+  Lit element (`cb-relative-time`) that ticks every second, with a server-side
+  fallback for the first render.
 - The sample app has interactive controls (input, textarea, select, checkbox,
   radio, range, list, submit summary), a scrollable inner container
   (`#sample-scroller`) and scroll-test filler.
@@ -239,7 +242,8 @@ Ordered by likely value:
 | `src/CobrowseService/Contracts/WireContract.cs` | Hub/HTTP payloads, protocol constants |
 | `src/CobrowseService/Sessions/SupportRequestService.cs` | Request lifecycle, one-live-request rule, consent |
 | `src/CobrowseService/Components/Pages/AgentConsole.razor` | Session list (active / requests / other), accept/open, mirror stage, tools |
-| `src/CobrowseService/ui/material.ts` | Material Web component imports; bundled by `bun run build` |
+| `src/CobrowseService/ui/material.ts` | Material Web + custom Lit component imports; bundled by `bun run build` |
+| `src/CobrowseService/ui/components/relative-time.ts` | `cb-relative-time` live age label |
 | `src/CobrowseService/wwwroot/lib/material/material.js` | Generated Material Web bundle (committed) |
 | `src/CobrowseService/wwwroot/css/theme.css` | Material 3 tokens, app shell, shared surfaces |
 | `src/App/Components/Pages/Home.razor` | Sample app controls and scroll-test filler |
