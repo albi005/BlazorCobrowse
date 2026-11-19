@@ -53,8 +53,9 @@ Working and verified end to end:
   Submit feedback and the "Send text" toolbar. `scripts/verify-interactions.js`
   asserts the customer state and the mirrored state after each action.
 - The service UI is Material Web on a Material 3 token layer: a top app bar
-  replaces the template sidebar, and the agent console shows the mirror on the
-  left with a dense session list (active / requests / other) on the right.
+  replaces the template sidebar. The agent console has a dense session list on
+  the left and the mirror on the right; the status pills and End session live
+  in the active session card, and the tools sit under the mirror.
 - The sample app has interactive controls (input, textarea, select, checkbox,
   radio, range, list, submit summary), a scrollable inner container
   (`#sample-scroller`) and scroll-test filler.

@@ -6,7 +6,7 @@
 
 .agent-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  grid-template-columns: minmax(300px, 340px) minmax(0, 1fr);
   gap: 1rem;
   align-items: start;
 }
@@ -18,32 +18,11 @@
   min-width: 0;
 }
 
-.stage-head {
-  display: flex;
-  align-items: baseline;
-  gap: .5rem;
-  min-height: 1.6rem;
-  padding: 0 .25rem;
-}
-
-.stage-head h2 {
-  font-size: 1rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.stage-head .muted {
-  font-size: .8rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* ------------------------------------------------------------------ mirror */
 
 .mirror-surface {
-  padding: .75rem;
+  padding: 0;
+  overflow: hidden;
   background: var(--md-sys-color-surface);
   border: 1px solid var(--md-sys-color-outline-variant);
   border-radius: 20px;
@@ -54,8 +33,6 @@
   max-height: 70vh;
   min-height: 320px;
   background: #fff;
-  border: 1px solid var(--md-sys-color-outline-variant);
-  border-radius: 14px;
 }
 
 .cb-mirror { position: relative; min-height: 320px; }
@@ -100,13 +77,12 @@
 
 .status-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: .45rem;
-  min-height: 2.25rem;
-  overflow: hidden;
+  gap: .35rem;
 }
 
-.status-row .cb-end { margin-left: auto; }
+
 
 .cb-pill {
   display: inline-flex;
@@ -303,6 +279,26 @@ md-outlined-button.cb-end {
   align-items: center;
 }
 
+.session-active .session-body {
+  display: grid;
+  gap: .3rem;
+}
+
+.session-active .status-row {
+  min-height: 0;
+}
+
+.session-end {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: .15rem;
+}
+
+.session-end .cb-end {
+  --md-outlined-button-container-height: 30px;
+  --md-outlined-button-label-text-size: .76rem;
+}
+
 .session-actions md-text-button,
 .session-actions md-filled-tonal-button {
   --md-text-button-label-text-size: .78rem;
@@ -324,9 +320,7 @@ md-outlined-button.cb-end {
 
 @media (max-width: 1000px) {
   .agent-layout { grid-template-columns: 1fr; }
-  .stage { order: 2; }
   .cb-sessions {
-    order: 1;
     position: static;
     max-height: none;
     overflow: visible;

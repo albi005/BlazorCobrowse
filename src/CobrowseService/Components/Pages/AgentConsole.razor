@@ -23,49 +23,6 @@
     }
 
     <div class="agent-layout">
-        <section class="stage">
-            @if (_selectedRequestId is not null && SelectedRequest is { } stageRequest)
-            {
-                <div class="stage-head">
-                    <h2>@stageRequest.User.DisplayName</h2>
-                    <span class="muted">@stageRequest.TenantId · @PageLabel(stageRequest)</span>
-                </div>
-
-                <div class="mirror-surface">
-                    <div class="cb-mirror-shell">
-                        <div id="cb-mirror" class="cb-mirror">
-                            <div class="cb-empty">Live mirror appears here once the customer grants viewing consent.</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="debug-surface">
-                    <div class="status-row">
-                        <span id="cb-link" class="cb-pill">connecting…</span>
-                        <span id="cb-user-state" class="cb-pill">customer offline</span>
-                        <span id="cb-consent-state" class="cb-pill">no consent</span>
-                        <md-outlined-button class="cb-end" @onclick="EndAsync">End session</md-outlined-button>
-                    </div>
-
-                    <span id="cb-tool-state" class="cb-tool-state">no element selected</span>
-
-                    <div class="cb-tools">
-                        <md-outlined-text-field id="cb-type-input"
-                                                label="Text to type into the selected element"></md-outlined-text-field>
-                        <md-filled-tonal-button class="cb-send" @onclick="SendTextAsync">Send text</md-filled-tonal-button>
-                        <md-outlined-button class="cb-scrolldown" @onclick="ScrollDownAsync">Scroll down</md-outlined-button>
-                    </div>
-                </div>
-            }
-            else
-            {
-                <div class="empty-stage">
-                    <strong>No session open</strong>
-                    <span>Accept a request or open an active session from the right.</span>
-                </div>
-            }
-        </section>
-
         <aside class="cb-sessions">
             <div class="sessions-panel">
                 <div class="sessions-head">
@@ -78,7 +35,7 @@
 
                     @if (SelectedRequest is { } activeRequest)
                     {
-                        <div class="session-row selected">
+                        <div class="session-row selected session-active">
                             <span class="session-dot"></span>
                             <div class="session-body">
                                 <div class="session-line">
@@ -90,6 +47,16 @@
                                 {
                                     <div class="session-meta">accepted @FormatAge(accepted) ago</div>
                                 }
+
+                                <div class="status-row compact">
+                                    <span id="cb-link" class="cb-pill">connecting…</span>
+                                    <span id="cb-user-state" class="cb-pill">customer offline</span>
+                                    <span id="cb-consent-state" class="cb-pill">no consent</span>
+                                </div>
+
+                                <div class="session-end">
+                                    <md-outlined-button class="cb-end" @onclick="EndAsync">End session</md-outlined-button>
+                                </div>
                             </div>
                         </div>
                     }
@@ -173,6 +140,39 @@
                 </section>
             </div>
         </aside>
+
+        <section class="stage">
+            @if (SelectedRequest is not null)
+            {
+                <div class="mirror-surface">
+                    <div class="cb-mirror-shell">
+                        <div id="cb-mirror" class="cb-mirror">
+                            <div class="cb-empty">Live mirror appears here once the customer grants viewing consent.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="debug-surface">
+                    <span id="cb-tool-state" class="cb-tool-state">no element selected</span>
+
+                    <div class="cb-tools">
+                        <md-outlined-text-field id="cb-type-input"
+                                                label="Text to type into the selected element"></md-outlined-text-field>
+                        <md-filled-tonal-button class="cb-send" @onclick="SendTextAsync">Send text</md-filled-tonal-button>
+                        <md-outlined-button class="cb-scrolldown" @onclick="ScrollDownAsync">Scroll down</md-outlined-button>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="empty-stage">
+                    <strong>No session open</strong>
+                    <span>Accept a request or open an active session from the left.</span>
+                </div>
+            }
+        </section>
+
+        
     </div>
 </div>
 
@@ -315,10 +315,7 @@
     [JSInvokable]
     public Task OnSessionState(bool customerOnline, bool view, bool control)
     {
-        _notice = customerOnline
-            ? "Customer is online."
-            : "Waiting for the customer's browser to reconnect…";
-
+        // Connection state is already on the status pills in the session list.
         StateHasChanged();
         return Task.CompletedTask;
     }
@@ -326,12 +323,7 @@
     [JSInvokable]
     public Task OnConsent(bool view, bool control)
     {
-        _notice = !view
-            ? "The customer paused screen sharing."
-            : control
-                ? "The customer granted view and control."
-                : "The customer granted view only.";
-
+        // Consent is already on the status pills in the session list.
         StateHasChanged();
         return Task.CompletedTask;
     }
@@ -339,7 +331,7 @@
     [JSInvokable]
     public Task OnCustomerState(bool online)
     {
-        _notice = online ? "Customer is online." : "Customer went offline.";
+        // Customer online/offline is already on the status pills.
         StateHasChanged();
         return Task.CompletedTask;
     }
