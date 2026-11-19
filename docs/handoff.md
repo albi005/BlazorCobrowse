@@ -61,6 +61,34 @@ Verified end to end: `verify-scroll-sync.js` across three viewport pairings
 `verify-interactions.js` for every control in both directions. All checks pass
 with no console errors.
 
+## Stable baseline
+
+`d320572` (2026-11-19) is the stable, verified sync baseline: two-way scroll
+(page and inner containers, exact positions), typing/caret/paste, every sample
+control, the customer cursor in the mirror, no auto-scroll on focus, and a
+status row that does not shift the mirror. The Git tag
+`stable-sync-2026-11-19` points at the commit that adds this note; its code is
+identical to `d320572`.
+
+Verified on that state: `verify-scroll-sync.js` (three viewport pairings),
+`verify-input-sync.js`, `verify-interactions.js`, plus a manual phone pass by
+the user.
+
+If something breaks later, compare against the baseline instead of guessing:
+
+```bash
+git log --oneline stable-sync-2026-11-19..HEAD   # what changed since
+git diff stable-sync-2026-11-19..HEAD            # the actual diff
+git switch --detach stable-sync-2026-11-19       # run the known-good tree
+```
+
+To move a branch back to it (destructive to commits made after it):
+
+```bash
+git switch main
+git reset --hard stable-sync-2026-11-19
+```
+
 ## Running it
 
 ```bash

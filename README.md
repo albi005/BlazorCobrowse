@@ -124,21 +124,25 @@ versioned by path (`/api/v1`), the hub contract by the `protocol` field on join,
 and the plugin reports its version in `X-Cobrowse-Client`. See
 [docs/compatibility.md](docs/compatibility.md).
 
-## Verifying scroll sync
+## Verifying
 
-`scripts/verify-scroll-sync.js` drives a real session in headless Chromium and
-checks both scroll directions, the "Scroll down" button, wobble, cursor
-anchoring and mirror sizing across three viewport pairings.
+Three end-to-end suites drive real sessions in headless Chromium:
 
 ```bash
 cd scripts
 npm install          # once; playwright is not committed
-node verify-scroll-sync.js
+node verify-scroll-sync.js    # both scroll directions, wobble, cursor, sizing
+node verify-input-sync.js     # typing, caret, select, no auto-scroll
+node verify-interactions.js   # every control both ways, cursor, inner scroll
 ```
 
-It needs both servers running. Set `APP_URL`, `AGENT_URL` or `CHROMIUM_PATH` to
-override the defaults, or `HEADLESS=false` to watch. The script exits non-zero
-if any check fails.
+They need both servers running. Set `APP_URL`, `AGENT_URL` or `CHROMIUM_PATH`
+to override the defaults, or `HEADLESS=false` to watch. Each script exits
+non-zero on failure.
+
+`d320572` is the verified stable baseline; the tag `stable-sync-2026-11-19`
+marks it. See [docs/handoff.md](docs/handoff.md#stable-baseline) for how to
+compare or return to it.
 
 ## Handoff
 
