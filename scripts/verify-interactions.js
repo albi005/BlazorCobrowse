@@ -57,7 +57,11 @@ async function cancelLiveRequests() {
   }
 }
 
-const isKnownNoise = (text) => /Blocked script execution .* sandboxed/.test(text);
+const isKnownNoise = (text) =>
+  /Blocked script execution .* sandboxed/.test(text) ||
+  // dotnet watch's browser-refresh socket is local to the dev server.
+  /WebSocket connection to 'wss?:\/\/localhost:\d+\//.test(text) ||
+  /ERR_CERT_AUTHORITY_INVALID/.test(text);
 
 async function startSession(browser) {
   // A tall viewport keeps the whole mirror visible, including the range.
@@ -84,7 +88,7 @@ async function startSession(browser) {
     null, { timeout: 20000 });
 
   await agent.goto(AGENT_URL, { waitUntil: 'networkidle' });
-  await agent.waitForSelector('table.cb-table', { timeout: 20000 });
+  await agent.waitForSelector('aside.cb-sessions', { timeout: 20000 });
   await agent.locator('button.cb-btn.primary', { hasText: 'Accept' }).first().click();
   await agent.waitForSelector('#cb-mirror', { timeout: 20000 });
   await customer.waitForFunction(
@@ -300,10 +304,15 @@ const mirrorState = (frame) => frame.evaluate(() => ({
       await scrollDown.click();
       await agent.waitForTimeout(500);
     }
-    check('scroll container is visible in the mirror', !!scrollerBox, true);
+    const shellBox = await agent.locator('.cb-mirror-shell').boundingBox();
+    const left = Math.max(scrollerBox.x, shellBox.x) + 10;
+    const right = Math.min(scrollerBox.x + scrollerBox.width, shellBox.x + shellBox.width) - 10;
+    const top = Math.max(scrollerBox.y, shellBox.y) + 10;
+    const bottom = Math.min(scrollerBox.y + scrollerBox.height, shellBox.y + shellBox.height) - 10;
+    check('scroll container is visible in the mirror', right > left && bottom > top, true);
 
     const pageBefore = await customer.evaluate(() => Math.round(scrollY));
-    await agent.mouse.move(scrollerBox.x + scrollerBox.width / 2, scrollerBox.y + 40);
+    await agent.mouse.move((left + right) / 2, (top + bottom) / 2);
     await agent.mouse.wheel(0, 160);
     const containerTop = await until(
       () => customer.evaluate(() => document.getElementById('sample-scroller').scrollTop || 0),

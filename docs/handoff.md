@@ -234,7 +234,7 @@ Ordered by likely value:
 | `src/CobrowseService/Realtime/CobrowseHub.cs` | Hub: join, backlog, control/cursor forwarding, consent |
 | `src/CobrowseService/Contracts/WireContract.cs` | Hub/HTTP payloads, protocol constants |
 | `src/CobrowseService/Sessions/SupportRequestService.cs` | Request lifecycle, one-live-request rule, consent |
-| `src/CobrowseService/Components/Pages/AgentConsole.razor` | Queue, accept, mirror, scroll-down button |
+| `src/CobrowseService/Components/Pages/AgentConsole.razor` | Session list (active / requests / other), accept/open, mirror stage, tools |
 | `src/App/Components/Pages/Home.razor` | Sample app controls and scroll-test filler |
 | `src/App.Cobrowse/CobrowseSession.cs` | Plugin lifecycle and module loading |
 | `docs/scroll-sync.md` | Scroll design and invariants |

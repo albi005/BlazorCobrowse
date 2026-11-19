@@ -32,125 +32,167 @@
         <p class="cb-ok">@_notice</p>
     }
 
-    <section class="cb-card">
-        <h2>Waiting for an agent (@_pending.Count)</h2>
+    <div class="cb-agent-layout">
+        <aside class="cb-sessions">
+            <section class="cb-card cb-session-group">
+                <h2>Active session</h2>
 
-        @if (_pending.Count == 0)
-        {
-            <p class="cb-muted">No one is waiting right now.</p>
-        }
-        else
-        {
-            <table class="cb-table">
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Tenant</th>
-                        <th>Page</th>
-                        <th>Note</th>
-                        <th>Waiting</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
+                @if (SelectedRequest is { } activeRequest)
+                {
+                    <div class="cb-session selected">
+                        <div class="cb-session-head">
+                            <span class="cb-session-user">@activeRequest.User.DisplayName</span>
+                            <span class="cb-pill ok">live</span>
+                        </div>
+                        <div class="cb-session-meta">
+                            <span>@activeRequest.TenantId</span>
+                            <span class="cb-session-page" title="@PageLabel(activeRequest)">@PageLabel(activeRequest)</span>
+                        </div>
+                        @if (activeRequest.AcceptedAt is { } accepted)
+                        {
+                            <div class="cb-session-meta">
+                                <span>accepted @FormatAge(accepted) ago</span>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="cb-muted">No session open.</p>
+                }
+            </section>
+
+            <section class="cb-card cb-session-group">
+                <h2>Requests (@_pending.Count)</h2>
+
+                @if (_pending.Count == 0)
+                {
+                    <p class="cb-muted">No one is waiting right now.</p>
+                }
+                else
+                {
                     @foreach (var request in _pending)
                     {
-                        <tr>
-                            <td>
-                                @request.User.DisplayName
-                                @if (!string.IsNullOrWhiteSpace(request.User.Email))
-                                {
-                                    <div class="cb-muted small">@request.User.Email</div>
-                                }
-                            </td>
-                            <td>@request.TenantId</td>
-                            <td>@(request.Page?.Title ?? request.Page?.Url ?? "—")</td>
-                            <td>@(request.Note ?? "—")</td>
-                            <td>@FormatAge(request.CreatedAt)</td>
-                            <td>
+                        <div class="cb-session">
+                            <div class="cb-session-head">
+                                <span class="cb-session-user">@request.User.DisplayName</span>
+                                <span class="cb-pill">@FormatAge(request.CreatedAt)</span>
+                            </div>
+                            <div class="cb-session-meta">
+                                <span>@request.TenantId</span>
+                                <span class="cb-session-page" title="@PageLabel(request)">@PageLabel(request)</span>
+                            </div>
+                            @if (!string.IsNullOrWhiteSpace(request.User.Email))
+                            {
+                                <div class="cb-session-meta">
+                                    <span>@request.User.Email</span>
+                                </div>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(request.Note))
+                            {
+                                <div class="cb-session-note">@request.Note</div>
+                            }
+                            <div class="cb-session-actions">
                                 <button class="cb-btn primary"
                                         disabled="@_connecting"
                                         @onclick="() => AcceptAsync(request.Id)">
                                     Accept
                                 </button>
-                            </td>
-                        </tr>
+                            </div>
+                        </div>
                     }
-                </tbody>
-            </table>
-        }
-    </section>
+                }
+            </section>
 
-    <section class="cb-card">
-        <h2>My active sessions (@_active.Count)</h2>
+            <section class="cb-card cb-session-group">
+                <h2>Other sessions (@OtherActive.Count())</h2>
 
-        @if (_active.Count == 0)
-        {
-            <p class="cb-muted">No active sessions.</p>
-        }
-        else
-        {
-            <table class="cb-table">
-                <thead>
-                    <tr>
-                        <th>User</th>
-                        <th>Tenant</th>
-                        <th>Page</th>
-                        <th>Accepted</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach (var request in _active)
+                @if (!OtherActive.Any())
+                {
+                    <p class="cb-muted">No other active sessions.</p>
+                }
+                else
+                {
+                    @foreach (var request in OtherActive)
                     {
-                        <tr>
-                            <td>@request.User.DisplayName</td>
-                            <td>@request.TenantId</td>
-                            <td>@(request.Page?.Title ?? request.Page?.Url ?? "—")</td>
-                            <td>@(request.AcceptedAt is { } accepted ? FormatAge(accepted) + " ago" : "—")</td>
-                            <td>
+                        <div class="cb-session">
+                            <div class="cb-session-head">
+                                <span class="cb-session-user">@request.User.DisplayName</span>
+                                <span class="cb-pill ok">active</span>
+                            </div>
+                            <div class="cb-session-meta">
+                                <span>@request.TenantId</span>
+                                <span class="cb-session-page" title="@PageLabel(request)">@PageLabel(request)</span>
+                            </div>
+                            @if (request.AcceptedAt is { } accepted)
+                            {
+                                <div class="cb-session-meta">
+                                    <span>accepted @FormatAge(accepted) ago</span>
+                                </div>
+                            }
+                            <div class="cb-session-actions">
                                 <button class="cb-btn"
                                         disabled="@_connecting"
                                         @onclick="() => OpenAsync(request.Id)">
                                     Open
                                 </button>
-                            </td>
-                        </tr>
+                            </div>
+                        </div>
                     }
-                </tbody>
-            </table>
-        }
-    </section>
+                }
+            </section>
+        </aside>
 
-    @if (_selectedRequestId is not null)
-    {
-        <section class="cb-card">
-            <div class="cb-toolbar">
-                <span id="cb-link" class="cb-pill">connecting…</span>
-                <span id="cb-user-state" class="cb-pill">customer offline</span>
-                <span id="cb-consent-state" class="cb-pill">no consent</span>
-                <button class="cb-btn danger" @onclick="EndAsync">End session</button>
-            </div>
+        <section class="cb-stage">
+            @if (_selectedRequestId is not null && SelectedRequest is { } stageRequest)
+            {
+                <section class="cb-card cb-stage-card">
+                    <div class="cb-stage-head">
+                        <div>
+                            <strong>@stageRequest.User.DisplayName</strong>
+                            <span class="cb-muted small">@stageRequest.TenantId · @PageLabel(stageRequest)</span>
+                        </div>
+                    </div>
 
-            <div class="cb-tools">
-                <span id="cb-tool-state" class="cb-tool-state">no element selected</span>
-                <input id="cb-type-input" placeholder="text to type into the selected element" autocomplete="off" />
-                <button class="cb-btn" @onclick="SendTextAsync">Send text</button>
-                <button class="cb-btn" @onclick="ScrollDownAsync">Scroll down</button>
-            </div>
+                    <div class="cb-mirror-shell">
+                        <div id="cb-mirror" class="cb-mirror">
+                            <div class="cb-empty">Live mirror appears here once the customer grants viewing consent.</div>
+                        </div>
+                    </div>
 
-            <div class="cb-mirror-shell">
-                <div id="cb-mirror" class="cb-mirror">
-                    <div class="cb-empty">Live mirror appears here once the customer grants viewing consent.</div>
-                </div>
-            </div>
+                    <div class="cb-debug">
+                        <div class="cb-toolbar">
+                            <span id="cb-link" class="cb-pill">connecting…</span>
+                            <span id="cb-user-state" class="cb-pill">customer offline</span>
+                            <span id="cb-consent-state" class="cb-pill">no consent</span>
+                            <button class="cb-btn danger" @onclick="EndAsync">End session</button>
+                        </div>
 
-            <p class="cb-muted small">
-                Clicks in the mirror become synthetic DOM events on the customer's page.
-                The iframe is sandboxed without scripts, so nothing runs in the mirror itself.
-            </p>
+                        <div class="cb-tools">
+                            <span id="cb-tool-state" class="cb-tool-state">no element selected</span>
+                            <input id="cb-type-input" placeholder="text to type into the selected element" autocomplete="off" />
+                            <button class="cb-btn" @onclick="SendTextAsync">Send text</button>
+                            <button class="cb-btn" @onclick="ScrollDownAsync">Scroll down</button>
+                        </div>
+
+                        <p class="cb-muted small">
+                            Clicks in the mirror become synthetic DOM events on the customer's page.
+                            The iframe is sandboxed without scripts, so nothing runs in the mirror itself.
+                        </p>
+                    </div>
+                </section>
+            }
+            else
+            {
+                <section class="cb-card cb-empty-stage">
+                    <div>
+                        <strong>No session open</strong>
+                        <p class="cb-muted">Accept a request or open an active session from the left.</p>
+                    </div>
+                </section>
+            }
         </section>
-    }
+    </div>
 </div>
 
 @code {
@@ -172,6 +214,17 @@
     }
 
     private void OnQueueChanged() => _ = InvokeAsync(Refresh);
+
+    private SupportRequestSnapshot? SelectedRequest =>
+        _selectedRequestId is null
+            ? null
+            : _active.FirstOrDefault(request => request.Id == _selectedRequestId);
+
+    private IEnumerable<SupportRequestSnapshot> OtherActive =>
+        _active.Where(request => request.Id != _selectedRequestId);
+
+    private static string PageLabel(SupportRequestSnapshot request) =>
+        request.Page?.Title ?? request.Page?.Url ?? "—";
 
     private void Refresh()
     {

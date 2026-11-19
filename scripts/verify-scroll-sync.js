@@ -74,9 +74,14 @@ async function startSession(browser, scenario) {
   const customer = await customerContext.newPage();
   const agent = await agentContext.newPage();
   const errors = [];
+  const isKnownNoise = (text) =>
+    /Blocked script execution .* sandboxed/.test(text) ||
+    // dotnet watch's browser-refresh socket is local to the dev server.
+    /WebSocket connection to 'wss?:\/\/localhost:\d+\//.test(text) ||
+    /ERR_CERT_AUTHORITY_INVALID/.test(text);
 
-  customer.on('console', (m) => { if (m.type() === 'error') errors.push('customer: ' + m.text()); });
-  agent.on('console', (m) => { if (m.type() === 'error') errors.push('agent: ' + m.text()); });
+  customer.on('console', (m) => { if (m.type() === 'error' && !isKnownNoise(m.text())) errors.push('customer: ' + m.text()); });
+  agent.on('console', (m) => { if (m.type() === 'error' && !isKnownNoise(m.text())) errors.push('agent: ' + m.text()); });
   customer.on('pageerror', (e) => errors.push('customer pageerror: ' + e.message));
   agent.on('pageerror', (e) => errors.push('agent pageerror: ' + e.message));
 
@@ -88,7 +93,7 @@ async function startSession(browser, scenario) {
     null, { timeout: 20000 });
 
   await agent.goto(AGENT_URL, { waitUntil: 'networkidle' });
-  await agent.waitForSelector('table.cb-table', { timeout: 20000 });
+  await agent.waitForSelector('aside.cb-sessions', { timeout: 20000 });
   await agent.locator('button.cb-btn.primary', { hasText: 'Accept' }).first().click();
   await agent.waitForSelector('#cb-mirror', { timeout: 20000 });
   await customer.waitForFunction(

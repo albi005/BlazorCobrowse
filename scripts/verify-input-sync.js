@@ -52,7 +52,11 @@ async function cancelLiveRequests() {
 }
 
 // rrweb replay of inline <script> in a sandboxed mirror is blocked by design.
-const isKnownNoise = (text) => /Blocked script execution .* sandboxed/.test(text);
+const isKnownNoise = (text) =>
+  /Blocked script execution .* sandboxed/.test(text) ||
+  // dotnet watch's browser-refresh socket is local to the dev server.
+  /WebSocket connection to 'wss?:\/\/localhost:\d+\//.test(text) ||
+  /ERR_CERT_AUTHORITY_INVALID/.test(text);
 
 async function startSession(browser) {
   const customerContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -78,7 +82,7 @@ async function startSession(browser) {
     null, { timeout: 20000 });
 
   await agent.goto(AGENT_URL, { waitUntil: 'networkidle' });
-  await agent.waitForSelector('table.cb-table', { timeout: 20000 });
+  await agent.waitForSelector('aside.cb-sessions', { timeout: 20000 });
   await agent.locator('button.cb-btn.primary', { hasText: 'Accept' }).first().click();
   await agent.waitForSelector('#cb-mirror', { timeout: 20000 });
   await customer.waitForFunction(
