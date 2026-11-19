@@ -168,9 +168,11 @@ Ordered by likely value:
    page. Resolve the nearest scrollable ancestor from `event.target`, send its
    `data-cb-id` as `nodeId`, and keep the same relative-delta protocol. The
    customer already applies `nodeId` scrolls to the element.
-2. **Phone testing.** Hard-refresh both pages on the phone and confirm wheel,
-   touch drag, and the "Scroll down" button. Touch is driven manually in the
-   mirror, so it is the most likely place for a new mismatch.
+2. **Phone testing.** Reload both pages on the phone and confirm wheel,
+   touch drag, the "Scroll down" button, and especially typing: the agent's
+   soft keyboard is the most likely place for the new input path to break.
+   Touch is driven manually in the mirror, so it is the most likely place for
+   a scroll mismatch.
 3. **Google SSO for customers** and **LDAP for agents.** The seams are
    `ICobrowseUserProvider` and `IAgentIdentityProvider`; the hub, console, and
    plugin do not need changes.

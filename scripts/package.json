@@ -4,7 +4,10 @@
   "description": "End-to-end checks for BlazorCobrowse",
   "type": "commonjs",
   "scripts": {
-    "verify-scroll-sync": "node verify-scroll-sync.js"
+    "verify-scroll-sync": "node verify-scroll-sync.js",
+    "verify-input-sync": "node verify-input-sync.js",
+    "verify-interactions": "node verify-interactions.js",
+    "verify-all": "node verify-scroll-sync.js && node verify-input-sync.js && node verify-interactions.js"
   },
   "dependencies": {
     "playwright": "^1.65.1"
