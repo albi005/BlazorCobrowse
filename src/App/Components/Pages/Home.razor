@@ -173,6 +173,22 @@
 
     <div class="card mt-4">
         <div class="card-body">
+            <h2 class="h5 card-title">Scroll container</h2>
+            <p class="text-muted small">
+                Wheel over this box. It scrolls on both sides and the page stays where it is.
+            </p>
+            <div id="sample-scroller" class="border rounded p-2"
+                 style="height: 160px; overflow-y: auto; overflow-x: hidden;">
+                @for (var i = 1; i <= 40; i++)
+                {
+                    <div>Row @i · inner scroll test</div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body">
             <h2 class="h5 card-title">Scroll test</h2>
             <p class="text-muted small">
                 Use the agent's <em>Scroll down</em> button to move this page.

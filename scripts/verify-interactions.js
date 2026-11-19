@@ -268,6 +268,54 @@ const mirrorState = (frame) => frame.evaluate(() => ({
 
     // Hidden/occluded tabs have their 60ms timers clamped to ~1s. The batcher
     // must flush from a microtask there, or agent feedback takes a second.
+    console.log('\n--- inner scroll container ---');
+    const scrollDown = agent.locator('button.cb-btn', { hasText: 'Scroll down' });
+    const frameBox = await agent.locator('#cb-mirror iframe').boundingBox();
+    let scrollerBox = null;
+    for (let i = 0; i < 6; i++) {
+      scrollerBox = await mf.locator('#sample-scroller').boundingBox();
+      if (scrollerBox && frameBox &&
+          scrollerBox.y >= frameBox.y &&
+          scrollerBox.y + scrollerBox.height <= frameBox.y + frameBox.height) {
+        break;
+      }
+      await scrollDown.click();
+      await agent.waitForTimeout(500);
+    }
+    check('scroll container is visible in the mirror', !!scrollerBox, true);
+
+    const pageBefore = await customer.evaluate(() => Math.round(scrollY));
+    await agent.mouse.move(scrollerBox.x + scrollerBox.width / 2, scrollerBox.y + 40);
+    await agent.mouse.wheel(0, 160);
+    const containerTop = await until(
+      () => customer.evaluate(() => document.getElementById('sample-scroller').scrollTop || 0),
+      3000).catch(() => 0);
+    check('agent wheel scrolls the inner container', containerTop > 0, true);
+    check('inner scroll leaves the page alone',
+      await customer.evaluate(() => Math.round(scrollY)), pageBefore);
+
+    const mirrorTop = await until(
+      async () => (await mf.evaluate(() => document.getElementById('sample-scroller').scrollTop)) || 0,
+      3000).catch(() => 0);
+    check('inner scroll is mirrored back', Math.abs(mirrorTop - containerTop) <= 4, true);
+
+    // Let the 600ms agent-gesture echo guard expire before driving from the
+    // customer side.
+    await agent.waitForTimeout(700);
+    await customer.evaluate(() => {
+      const el = document.getElementById('sample-scroller');
+      el.scrollTop = 300;
+      el.dispatchEvent(new Event('scroll'));
+    });
+    const customerTop = await until(
+      async () => {
+        const top = await mf.evaluate(() => document.getElementById('sample-scroller').scrollTop);
+        return Math.abs(top - 300) <= 4 ? top : 0;
+      }, 3000).catch(() => -1);
+    check('customer inner scroll is mirrored', customerTop, 300);
+
+    // Hidden/occluded tabs have their 60ms timers clamped to ~1s. The batcher
+    // must flush from a microtask there, or agent feedback takes a second.
     console.log('\n--- hidden tab latency ---');
     await customer.evaluate(() => {
       const orig = window.setTimeout;

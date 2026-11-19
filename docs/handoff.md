@@ -25,6 +25,9 @@ Working and verified end to end:
   gives the agent a live rrweb mirror and view consent.
 - Customer → agent scroll sync.
 - Agent → customer scroll sync via the "Scroll down" button and mouse wheel.
+- Inner scroll containers scroll on both sides; a wheel or touch drag resolves
+  the nearest scrollable ancestor and sends its `data-cb-id`. The page itself
+  stays put.
 - No wobble after an agent gesture settles.
 - The mirror renders at the customer's native viewport size (no scaling).
 - Cursor dot is anchored to document coordinates and stays under the agent's
@@ -45,7 +48,8 @@ Working and verified end to end:
   Submit feedback and the "Send text" toolbar. `scripts/verify-interactions.js`
   asserts the customer state and the mirrored state after each action.
 - The sample app has interactive controls (input, textarea, select, checkbox,
-  radio, range, list, submit summary) plus scroll-test filler.
+  radio, range, list, submit summary), a scrollable inner container
+  (`#sample-scroller`) and scroll-test filler.
 
 Verified end to end: `verify-scroll-sync.js` across three viewport pairings
 (same size, agent smaller, agent larger), `verify-input-sync.js` for typing and
@@ -163,21 +167,16 @@ The script checks:
 
 Ordered by likely value:
 
-1. **Inner scroll containers.** The gesture handlers use
-   `document.scrollingElement`; a wheel over a scrollable `<div>` scrolls the
-   page. Resolve the nearest scrollable ancestor from `event.target`, send its
-   `data-cb-id` as `nodeId`, and keep the same relative-delta protocol. The
-   customer already applies `nodeId` scrolls to the element.
-2. **Phone testing.** Reload both pages on the phone and confirm wheel,
-   touch drag, the "Scroll down" button, and especially typing: the agent's
-   soft keyboard is the most likely place for the new input path to break.
-   Touch is driven manually in the mirror, so it is the most likely place for
-   a scroll mismatch.
-3. **Google SSO for customers** and **LDAP for agents.** The seams are
+1. **Google SSO for customers** and **LDAP for agents.** The seams are
    `ICobrowseUserProvider` and `IAgentIdentityProvider`; the hub, console, and
-   plugin do not need changes.
-4. **Tenant/service trust.** The shared key in `TenantDirectory` is a
+   plugin do not need changes. Phone and touch input are confirmed working.
+2. **Tenant/service trust.** The shared key in `TenantDirectory` is a
    development placeholder. Replace with mTLS or a signed service token.
+3. **Cross-browser pass.** The suites run on Chromium so far. Firefox and
+   WebKit are worth one run for select/range/iframe differences.
+4. **Scroll chaining at container edges.** A wheel that starts on an inner
+   container never scrolls the customer's page, even at the container's end.
+   Forward the overflow to the page if it matters in practice.
 5. **Screen-sharing fallback** when rrweb cannot capture a page, and
    **RustDesk** integration for full remote control. Both are future work and
    not started.

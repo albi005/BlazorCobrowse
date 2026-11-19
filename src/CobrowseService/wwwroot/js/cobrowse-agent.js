@@ -483,6 +483,33 @@ window.cobrowseAgent = (function () {
     }).catch(() => setToolState('clipboard permission denied', 'warn'));
   }
 
+  /**
+   * The nearest scrollable ancestor of a wheel/touch/key target, or the
+   * document scroller when there is none. The customer applies `scroll` with
+   * the same `data-cb-id`, so an inner container scrolls on both sides.
+   */
+  function scrollableAncestor(node, doc) {
+    const root = doc.scrollingElement || doc.documentElement;
+    let el = node?.nodeType === 1 ? node : node?.parentElement ?? null;
+
+    while (el && el !== doc.body && el !== doc.documentElement) {
+      const style = doc.defaultView.getComputedStyle(el);
+      const canY = /(auto|scroll|overlay)/.test(style.overflowY) && el.scrollHeight > el.clientHeight + 1;
+      const canX = /(auto|scroll|overlay)/.test(style.overflowX) && el.scrollWidth > el.clientWidth + 1;
+      if (canX || canY) return el;
+      el = el.parentElement;
+    }
+
+    return root;
+  }
+
+  /** The control `nodeId` for a scroller: empty means the page itself. */
+  function scrollNodeId(scroller, doc) {
+    const root = doc.scrollingElement || doc.documentElement;
+    if (!scroller || scroller === root) return '';
+    return scroller.getAttribute('data-cb-id') || '';
+  }
+
   function attachControls() {
     fitMirror();
     const doc = replayer?.iframe?.contentDocument;
@@ -565,11 +592,13 @@ window.cobrowseAgent = (function () {
     };
 
     // Desktop wheel: let the mirror scroll natively for instant feedback and
-    // send the same delta to the customer. The replay echo is ignored while
-    // the gesture is active, so it cannot pull the mirror back.
+    // send the same delta to the customer. The nearest scrollable ancestor is
+    // the target, so a wheel over an inner container does not scroll the page.
+    // The replay echo is ignored while the gesture is active.
     const onWheel = (event) => {
       const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? doc.documentElement.clientHeight : 1;
-      const scroller = doc.scrollingElement || doc.documentElement;
+      const scroller = scrollableAncestor(event.target, doc);
+      const nodeId = scrollNodeId(scroller, doc);
       const dx = event.deltaX * unit;
       const dy = event.deltaY * unit;
       lastCursor = { x: event.clientX, y: event.clientY };
@@ -582,15 +611,19 @@ window.cobrowseAgent = (function () {
       requestAnimationFrame(() => {
         setScrollTarget(scroller, scroller.scrollTop, scroller.scrollLeft);
       });
-      queueScroll('', dx, dy);
+      queueScroll(nodeId, dx, dy);
     };
 
     // Touch: drive the mirror manually so finger deltas and the customer's
     // scroll stay in lockstep (native momentum would overshoot the delta).
     let touchLast = null;
+    let touchScroller = null;
+    let touchNodeId = '';
     const onTouchStart = (event) => {
       const touch = event.touches[0];
       if (touch) touchLast = { x: touch.clientX, y: touch.clientY };
+      touchScroller = scrollableAncestor(event.target, doc);
+      touchNodeId = scrollNodeId(touchScroller, doc);
       markAgentScroll();
     };
     const onTouchMove = (event) => {
@@ -603,13 +636,17 @@ window.cobrowseAgent = (function () {
       lastCursor = { x: touch.clientX, y: touch.clientY };
       sendCursor(doc);
       markAgentScroll();
-      const scroller = doc.scrollingElement || doc.documentElement;
+      const scroller = touchScroller || doc.scrollingElement || doc.documentElement;
       scroller.scrollTop += dy;
       scroller.scrollLeft += dx;
       setScrollTarget(scroller, scroller.scrollTop, scroller.scrollLeft);
-      queueScroll('', dx, dy);
+      queueScroll(touchNodeId, dx, dy);
     };
-    const onTouchEnd = () => { touchLast = null; };
+    const onTouchEnd = () => {
+      touchLast = null;
+      touchScroller = null;
+      touchNodeId = '';
+    };
 
     const onKeyDown = (event) => {
       // Keys typed into a mirror field go to the customer's field; only keys
@@ -628,7 +665,8 @@ window.cobrowseAgent = (function () {
         return;
       }
 
-      const scroller = doc.scrollingElement || doc.documentElement;
+      const scroller = scrollableAncestor(event.target, doc);
+      const nodeId = scrollNodeId(scroller, doc);
       let dy = 0;
       if (event.key === 'ArrowDown') dy = 40;
       else if (event.key === 'ArrowUp') dy = -40;
@@ -641,7 +679,7 @@ window.cobrowseAgent = (function () {
       markAgentScroll();
       scroller.scrollTop += dy;
       setScrollTarget(scroller, scroller.scrollTop, scroller.scrollLeft);
-      queueScroll('', 0, dy);
+      queueScroll(nodeId, 0, dy);
     };
 
     // Menu paste (or Ctrl+V the browser handles itself) still has clipboard

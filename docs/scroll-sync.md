@@ -50,6 +50,19 @@ Wheel scrolls natively so the agent sees movement immediately. Touch and
 keyboard are driven manually because native momentum would overshoot the delta
 the customer receives.
 
+### Inner containers
+
+Every gesture resolves its target from `event.target` up to the nearest
+scrollable ancestor (`scrollableAncestor`): an element whose computed
+`overflow-x`/`overflow-y` is `auto`, `scroll` or `overlay` and whose content is
+actually larger than its box. If there is none, the document scroller is the
+target. The target's `data-cb-id` becomes the `nodeId`; the page itself uses an
+empty id, so the wire format and the customer's `scrollBy` path are unchanged.
+
+`queueScroll` already keys its merge map by `nodeId`, so wheel bursts over
+several containers merge independently and one flush sends one message per
+container.
+
 ### Merging
 
 `queueScroll(nodeId, dx, dy)` accumulates deltas in a `Map` keyed by node id and
@@ -65,9 +78,11 @@ Two mechanisms:
 1. `agentScrollUntil` — set to `now + 600 ms` on every gesture. Scroll events
    that arrive before it are dropped in `apply()`.
 2. `agentScrollTarget` — set to the position the agent just scrolled to, with a
-   `now + 1500 ms` deadline. A replayed scroll event is dropped while it is
-   away from that target, and the guard clears as soon as the replay reaches it
-   (within 2 px).
+   `now + 1500 ms` deadline. A replayed scroll event for the **document** is
+   dropped while it is away from that target, and the guard clears as soon as
+   the replay reaches it (within 2 px). Inner-container echoes do not have a
+   stable rrweb id to map back to `data-cb-id`, so they rely only on the 600 ms
+   window; the delta model means the echo lands on the same position anyway.
 
 The wheel handler reads the real position on the next frame instead of
 predicting `scrollTop + delta`: the browser may apply the native scroll before
@@ -122,12 +137,10 @@ refreshes the cursor dot. Sending from there would create the echo loop again.
 
 ## Known limitations
 
-- **Inner scroll containers.** The wheel/touch/keyboard handlers use
-  `document.scrollingElement`, so a wheel over a scrollable `<div>` scrolls the
-  page instead of that container. The protocol supports `nodeId`; the gesture
-  handlers do not yet resolve the container under the pointer. Next step:
-  walk up from `event.target` to the nearest scrollable ancestor and send its
-  `data-cb-id`.
+- **No scroll chaining.** When an inner container reaches its end, the agent's
+  browser may chain the rest of the wheel to the page, while the customer's
+  container simply stops. A wheel that starts on a container never scrolls the
+  customer's page. Move the pointer off the container to scroll the page.
 - **Horizontal panning.** See the sizing note above.
 - **Scrollbar visibility.** The mirror iframe renders at native size, so the
   customer's scrollbars are visible inside the iframe. That is expected.
@@ -140,4 +153,6 @@ refreshes the cursor dot. Sending from there would create the echo loop again.
 `scripts/verify-scroll-sync.js` runs the whole matrix headlessly. It checks
 customer→agent, the "Scroll down" button, the agent wheel, wobble (the mirror
 must hold still after settling), cursor anchoring, and that the mirror document
-matches the customer's viewport size. See the README for how to run it.
+matches the customer's viewport size. `scripts/verify-interactions.js` also
+covers the inner scroll container in both directions (the sample page has
+`#sample-scroller`). See the README for how to run them.
