@@ -83,7 +83,7 @@ async function startSession(browser) {
 
   await agent.goto(AGENT_URL, { waitUntil: 'networkidle' });
   await agent.waitForSelector('aside.cb-sessions', { timeout: 20000 });
-  await agent.locator('button.cb-btn.primary', { hasText: 'Accept' }).first().click();
+  await agent.locator('md-filled-tonal-button.cb-accept').first().click();
   await agent.waitForSelector('#cb-mirror', { timeout: 20000 });
   await customer.waitForFunction(
     () => document.querySelector('button.cbx-support-button')?.textContent.includes('connected'),
@@ -98,7 +98,7 @@ async function startSession(browser) {
 
 async function endSession(customer, agent) {
   await agent.bringToFront();
-  const end = agent.locator('button.cb-btn.danger', { hasText: 'End session' }).first();
+  const end = agent.locator('md-outlined-button.cb-end').first();
   if (await end.count()) {
     await end.click().catch(() => {});
     await agent.waitForTimeout(900);

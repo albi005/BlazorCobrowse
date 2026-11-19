@@ -48,6 +48,23 @@ The sample configuration uses:
 - a development agent (`agent-1` / `Support Agent`)
 - the service at `http://localhost:5232`
 
+## UI components
+
+The service UI is built from [Material Web](https://github.com/material-components/material-web)
+custom elements (`md-filled-button`, `md-outlined-text-field`, …) on a small
+Material 3 token layer in `src/CobrowseService/wwwroot/css/theme.css`.
+
+The component bundle is generated from `src/CobrowseService/ui/material.ts`:
+
+```bash
+cd src/CobrowseService/ui
+bun install
+bun run build        # writes ../wwwroot/lib/material/material.js
+```
+
+`material.js` is committed so `dotnet run` works without a JS toolchain. Rerun
+the build after changing the import list; refresh the page after rebuilding.
+
 ## How it works
 
 1. The plugin calls `POST /api/v1/support-requests` on the service from the

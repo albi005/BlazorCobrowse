@@ -1,0 +1,245 @@
+/* Material 3 tokens, app shell and shared surfaces for the cobrowse service.
+   Components come from @material/web (wwwroot/lib/material/material.js). */
+
+:root {
+  color-scheme: light;
+
+  --md-ref-typeface-brand: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --md-ref-typeface-plain: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --md-sys-color-primary: #0b57d0;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #d3e3fd;
+  --md-sys-color-on-primary-container: #041e49;
+  --md-sys-color-secondary: #00639b;
+  --md-sys-color-on-secondary: #ffffff;
+  --md-sys-color-secondary-container: #c2e7ff;
+  --md-sys-color-on-secondary-container: #001d35;
+  --md-sys-color-tertiary: #6b5778;
+  --md-sys-color-on-tertiary: #ffffff;
+  --md-sys-color-surface: #fdfcff;
+  --md-sys-color-on-surface: #1a1c1e;
+  --md-sys-color-surface-variant: #e1e2ec;
+  --md-sys-color-on-surface-variant: #44474e;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #f7f9fc;
+  --md-sys-color-surface-container: #f0f4f9;
+  --md-sys-color-surface-container-high: #e9eef6;
+  --md-sys-color-surface-container-highest: #e3e8ef;
+  --md-sys-color-outline: #74777f;
+  --md-sys-color-outline-variant: #c4c6d0;
+  --md-sys-color-error: #ba1a1a;
+  --md-sys-color-on-error: #ffffff;
+  --md-sys-color-error-container: #ffdad6;
+  --md-sys-color-on-error-container: #410002;
+  --md-sys-color-inverse-surface: #2f3033;
+  --md-sys-color-inverse-on-surface: #f1f0f4;
+  --md-sys-color-surface-tint: #0b57d0;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-scrim: #000000;
+
+  --cb-ok: #166534;
+  --cb-ok-surface: #dcfce7;
+  --cb-warn: #92400e;
+  --cb-warn-surface: #fef3c7;
+  --cb-err: #991b1b;
+  --cb-err-surface: #fee2e2;
+}
+
+* { box-sizing: border-box; }
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--md-sys-color-surface-container-low);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-ref-typeface-plain);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--md-sys-color-primary); }
+
+h1, h2, h3, h4 { margin: 0; font-weight: 600; letter-spacing: -.01em; }
+
+/* FocusOnNavigate focuses the page heading; the default outline is noise. */
+h1:focus, h2:focus, h3:focus { outline: none; }
+
+p { margin: 0; }
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: .88em;
+  background: var(--md-sys-color-surface-container-high);
+  padding: .08rem .3rem;
+  border-radius: 4px;
+}
+
+/* ---------------------------------------------------------------- app shell */
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.app-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  height: 4rem;
+  padding: 0 1.25rem;
+  background: var(--md-sys-color-surface);
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  margin-right: .75rem;
+  color: var(--md-sys-color-on-surface);
+  font-size: 1.05rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.app-brand-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--md-sys-color-primary);
+  box-shadow: 0 0 0 3px var(--md-sys-color-primary-container);
+}
+
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: .25rem;
+}
+
+.app-nav-link {
+  display: inline-flex;
+  align-items: center;
+  height: 2.5rem;
+  padding: 0 .9rem;
+  border-radius: 999px;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: .88rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.app-nav-link:hover { background: var(--md-sys-color-surface-container-high); }
+
+.app-nav-link.active {
+  background: var(--md-sys-color-primary-container);
+  color: var(--md-sys-color-on-primary-container);
+  font-weight: 600;
+}
+
+.app-spacer { flex: 1; }
+
+.app-user {
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: .82rem;
+}
+
+.app-main { flex: 1; }
+
+/* ------------------------------------------------------------ shared pieces */
+
+.page {
+  padding: 1.25rem;
+}
+
+.page-narrow {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 4rem;
+}
+
+.surface {
+  background: var(--md-sys-color-surface);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  border-radius: 20px;
+}
+
+.muted { color: var(--md-sys-color-on-surface-variant); }
+.small { font-size: .82rem; }
+
+.notice {
+  margin: 0 0 1rem;
+  padding: .65rem .9rem;
+  border-radius: 12px;
+  font-size: .88rem;
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.notice.error {
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+}
+
+/* ----------------------------------------------------------- home / general */
+
+.home-hero {
+  display: grid;
+  gap: 1.1rem;
+  max-width: 42rem;
+  margin-bottom: 2rem;
+}
+
+.home-hero h1 { font-size: 2.2rem; }
+.home-hero p { color: var(--md-sys-color-on-surface-variant); font-size: 1rem; }
+
+.home-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.home-card { padding: 1.15rem 1.25rem; }
+
+.home-card h2 { font-size: 1rem; margin-bottom: .4rem; }
+.home-card p { color: var(--md-sys-color-on-surface-variant); font-size: .9rem; }
+.home-card .home-actions { margin-top: 1rem; }
+
+.docs-list {
+  margin: 1.5rem 0 0;
+  padding-left: 1.1rem;
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: .9rem;
+}
+
+/* ------------------------------------------------------------- error UI */
+
+#blazor-error-ui {
+  color-scheme: light only;
+  background: #fff8e1;
+  bottom: 0;
+  box-shadow: 0 -1px 3px rgba(0, 0, 0, .18);
+  display: none;
+  left: 0;
+  padding: .65rem 1.25rem;
+  position: fixed;
+  width: 100%;
+  z-index: 1000;
+  font-size: .88rem;
+}
+
+#blazor-error-ui .dismiss {
+  cursor: pointer;
+  position: absolute;
+  right: .75rem;
+  top: .5rem;
+}

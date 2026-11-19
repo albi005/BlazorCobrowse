@@ -94,7 +94,7 @@ async function startSession(browser, scenario) {
 
   await agent.goto(AGENT_URL, { waitUntil: 'networkidle' });
   await agent.waitForSelector('aside.cb-sessions', { timeout: 20000 });
-  await agent.locator('button.cb-btn.primary', { hasText: 'Accept' }).first().click();
+  await agent.locator('md-filled-tonal-button.cb-accept').first().click();
   await agent.waitForSelector('#cb-mirror', { timeout: 20000 });
   await customer.waitForFunction(
     () => document.querySelector('button.cbx-support-button')?.textContent.includes('connected'),
@@ -107,7 +107,7 @@ async function startSession(browser, scenario) {
 async function endSession(customer, agent) {
   // End through the console so the real UI path is exercised.
   await agent.bringToFront();
-  const end = agent.locator('button.cb-btn.danger', { hasText: 'End session' }).first();
+  const end = agent.locator('md-outlined-button.cb-end').first();
   if (await end.count()) {
     await end.click().catch(() => {});
     await agent.waitForTimeout(900);
@@ -188,7 +188,7 @@ async function runScenario(browser, scenario) {
 
     // 2. Agent "Scroll down" button.
     const beforeButton = (await mirror.scroll()).top;
-    await agent.locator('button.cb-btn', { hasText: 'Scroll down' }).click();
+    await agent.locator('md-outlined-button.cb-scrolldown').click();
     await agent.waitForTimeout(900);
     const afterButton = (await mirror.scroll()).top;
     const step = afterButton - beforeButton;

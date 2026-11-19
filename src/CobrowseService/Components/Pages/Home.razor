@@ -2,33 +2,42 @@
 
 <PageTitle>Cobrowse service</PageTitle>
 
-<div class="cb-page">
-    <header class="cb-hero">
+<div class="page-narrow">
+    <section class="home-hero">
+        <h1>Cobrowse service</h1>
+        <p>
+            Tenant applications create support requests through the tenant API.
+            Agents pick them up in the console and see the customer's page as a live
+            DOM mirror, with optional control.
+        </p>
         <div>
-            <h1>Cobrowse service</h1>
-            <p>
-                Tenant applications create support requests through the tenant API.
-                Agents pick them up in the console and see the customer's page as a
-                live DOM mirror.
-            </p>
+            <md-filled-button href="agent">Open agent console</md-filled-button>
         </div>
-    </header>
-
-    <section class="cb-card">
-        <h2>Agent console</h2>
-        <p class="cb-muted">
-            Open the queue, accept a waiting request, and the customer's page appears
-            in the mirror.
-        </p>
-        <a class="cb-btn primary" href="agent">Open agent console</a>
     </section>
 
-    <section class="cb-card">
-        <h2>Tenant API</h2>
-        <p class="cb-muted">
-            Tenants call <code>POST /api/v1/support-requests</code> with their tenant
-            key. The response contains a short-lived join token and the hub URL the
-            customer's browser uses.
-        </p>
-    </section>
+    <div class="home-grid">
+        <article class="surface home-card">
+            <h2>Tenant API</h2>
+            <p>
+                Tenants call <code>POST /api/v1/support-requests</code> with their tenant
+                key. The response contains a short-lived join token and the hub URL the
+                customer's browser uses.
+            </p>
+        </article>
+
+        <article class="surface home-card">
+            <h2>Live mirror</h2>
+            <p>
+                The service relays rrweb events between the customer's browser and the
+                agent console. Clicks, typing and scrolling travel back as control
+                messages.
+            </p>
+        </article>
+    </div>
+
+    <ul class="docs-list">
+        <li>Agent console: <a href="agent">/agent</a></li>
+        <li>Hub endpoint: <code>/hubs/cobrowse</code></li>
+        <li>Wire contract: <code>src/CobrowseService/Contracts/WireContract.cs</code></li>
+    </ul>
 </div>

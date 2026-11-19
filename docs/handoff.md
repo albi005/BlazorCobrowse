@@ -52,6 +52,9 @@ Working and verified end to end:
   Reset, checkbox, radio, select, range, name/notes typing, list add/remove,
   Submit feedback and the "Send text" toolbar. `scripts/verify-interactions.js`
   asserts the customer state and the mirrored state after each action.
+- The service UI is Material Web on a Material 3 token layer: a top app bar
+  replaces the template sidebar, and the agent console shows the mirror on the
+  left with a dense session list (active / requests / other) on the right.
 - The sample app has interactive controls (input, textarea, select, checkbox,
   radio, range, list, submit summary), a scrollable inner container
   (`#sample-scroller`) and scroll-test filler.
@@ -235,6 +238,9 @@ Ordered by likely value:
 | `src/CobrowseService/Contracts/WireContract.cs` | Hub/HTTP payloads, protocol constants |
 | `src/CobrowseService/Sessions/SupportRequestService.cs` | Request lifecycle, one-live-request rule, consent |
 | `src/CobrowseService/Components/Pages/AgentConsole.razor` | Session list (active / requests / other), accept/open, mirror stage, tools |
+| `src/CobrowseService/ui/material.ts` | Material Web component imports; bundled by `bun run build` |
+| `src/CobrowseService/wwwroot/lib/material/material.js` | Generated Material Web bundle (committed) |
+| `src/CobrowseService/wwwroot/css/theme.css` | Material 3 tokens, app shell, shared surfaces |
 | `src/App/Components/Pages/Home.razor` | Sample app controls and scroll-test filler |
 | `src/App.Cobrowse/CobrowseSession.cs` | Plugin lifecycle and module loading |
 | `docs/scroll-sync.md` | Scroll design and invariants |

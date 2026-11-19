@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "bun build material.ts --outdir ../wwwroot/lib/material --format=iife --minify --target=browser"
+  },
+  "dependencies": {
+    "@material/web": "^2.3.0"
+  }
+}

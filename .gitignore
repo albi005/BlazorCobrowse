@@ -6,4 +6,5 @@ obj/
 *.suo
 scripts/node_modules/
 scripts/package-lock.json
+src/CobrowseService/ui/node_modules/
 docs/*.png

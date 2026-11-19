@@ -11,187 +11,168 @@
 
 <PageTitle>Agent console</PageTitle>
 
-<div class="cb-page">
-    <header class="cb-hero">
-        <div>
-            <h1>Agent console <span class="cb-tag">support view</span></h1>
-            <p>Pick up a waiting request. The mirror is rebuilt from the customer's DOM, not a video stream.</p>
-        </div>
-        <div class="cb-muted small">
-            Signed in as <strong>@(_agent?.DisplayName ?? "unknown")</strong>
-        </div>
-    </header>
-
+<div class="agent-page">
     @if (_error is not null)
     {
-        <p class="cb-error">@_error</p>
+        <p class="notice error">@_error</p>
     }
 
     @if (_notice is not null)
     {
-        <p class="cb-ok">@_notice</p>
+        <p class="notice">@_notice</p>
     }
 
-    <div class="cb-agent-layout">
-        <aside class="cb-sessions">
-            <section class="cb-card cb-session-group">
-                <h2>Active session</h2>
-
-                @if (SelectedRequest is { } activeRequest)
-                {
-                    <div class="cb-session selected">
-                        <div class="cb-session-head">
-                            <span class="cb-session-user">@activeRequest.User.DisplayName</span>
-                            <span class="cb-pill ok">live</span>
-                        </div>
-                        <div class="cb-session-meta">
-                            <span>@activeRequest.TenantId</span>
-                            <span class="cb-session-page" title="@PageLabel(activeRequest)">@PageLabel(activeRequest)</span>
-                        </div>
-                        @if (activeRequest.AcceptedAt is { } accepted)
-                        {
-                            <div class="cb-session-meta">
-                                <span>accepted @FormatAge(accepted) ago</span>
-                            </div>
-                        }
-                    </div>
-                }
-                else
-                {
-                    <p class="cb-muted">No session open.</p>
-                }
-            </section>
-
-            <section class="cb-card cb-session-group">
-                <h2>Requests (@_pending.Count)</h2>
-
-                @if (_pending.Count == 0)
-                {
-                    <p class="cb-muted">No one is waiting right now.</p>
-                }
-                else
-                {
-                    @foreach (var request in _pending)
-                    {
-                        <div class="cb-session">
-                            <div class="cb-session-head">
-                                <span class="cb-session-user">@request.User.DisplayName</span>
-                                <span class="cb-pill">@FormatAge(request.CreatedAt)</span>
-                            </div>
-                            <div class="cb-session-meta">
-                                <span>@request.TenantId</span>
-                                <span class="cb-session-page" title="@PageLabel(request)">@PageLabel(request)</span>
-                            </div>
-                            @if (!string.IsNullOrWhiteSpace(request.User.Email))
-                            {
-                                <div class="cb-session-meta">
-                                    <span>@request.User.Email</span>
-                                </div>
-                            }
-                            @if (!string.IsNullOrWhiteSpace(request.Note))
-                            {
-                                <div class="cb-session-note">@request.Note</div>
-                            }
-                            <div class="cb-session-actions">
-                                <button class="cb-btn primary"
-                                        disabled="@_connecting"
-                                        @onclick="() => AcceptAsync(request.Id)">
-                                    Accept
-                                </button>
-                            </div>
-                        </div>
-                    }
-                }
-            </section>
-
-            <section class="cb-card cb-session-group">
-                <h2>Other sessions (@OtherActive.Count())</h2>
-
-                @if (!OtherActive.Any())
-                {
-                    <p class="cb-muted">No other active sessions.</p>
-                }
-                else
-                {
-                    @foreach (var request in OtherActive)
-                    {
-                        <div class="cb-session">
-                            <div class="cb-session-head">
-                                <span class="cb-session-user">@request.User.DisplayName</span>
-                                <span class="cb-pill ok">active</span>
-                            </div>
-                            <div class="cb-session-meta">
-                                <span>@request.TenantId</span>
-                                <span class="cb-session-page" title="@PageLabel(request)">@PageLabel(request)</span>
-                            </div>
-                            @if (request.AcceptedAt is { } accepted)
-                            {
-                                <div class="cb-session-meta">
-                                    <span>accepted @FormatAge(accepted) ago</span>
-                                </div>
-                            }
-                            <div class="cb-session-actions">
-                                <button class="cb-btn"
-                                        disabled="@_connecting"
-                                        @onclick="() => OpenAsync(request.Id)">
-                                    Open
-                                </button>
-                            </div>
-                        </div>
-                    }
-                }
-            </section>
-        </aside>
-
-        <section class="cb-stage">
+    <div class="agent-layout">
+        <section class="stage">
             @if (_selectedRequestId is not null && SelectedRequest is { } stageRequest)
             {
-                <section class="cb-card cb-stage-card">
-                    <div class="cb-stage-head">
-                        <div>
-                            <strong>@stageRequest.User.DisplayName</strong>
-                            <span class="cb-muted small">@stageRequest.TenantId · @PageLabel(stageRequest)</span>
-                        </div>
-                    </div>
+                <div class="stage-head">
+                    <h2>@stageRequest.User.DisplayName</h2>
+                    <span class="muted">@stageRequest.TenantId · @PageLabel(stageRequest)</span>
+                </div>
 
+                <div class="mirror-surface">
                     <div class="cb-mirror-shell">
                         <div id="cb-mirror" class="cb-mirror">
                             <div class="cb-empty">Live mirror appears here once the customer grants viewing consent.</div>
                         </div>
                     </div>
+                </div>
 
-                    <div class="cb-debug">
-                        <div class="cb-toolbar">
-                            <span id="cb-link" class="cb-pill">connecting…</span>
-                            <span id="cb-user-state" class="cb-pill">customer offline</span>
-                            <span id="cb-consent-state" class="cb-pill">no consent</span>
-                            <button class="cb-btn danger" @onclick="EndAsync">End session</button>
-                        </div>
-
-                        <div class="cb-tools">
-                            <span id="cb-tool-state" class="cb-tool-state">no element selected</span>
-                            <input id="cb-type-input" placeholder="text to type into the selected element" autocomplete="off" />
-                            <button class="cb-btn" @onclick="SendTextAsync">Send text</button>
-                            <button class="cb-btn" @onclick="ScrollDownAsync">Scroll down</button>
-                        </div>
-
-                        <p class="cb-muted small">
-                            Clicks in the mirror become synthetic DOM events on the customer's page.
-                            The iframe is sandboxed without scripts, so nothing runs in the mirror itself.
-                        </p>
+                <div class="debug-surface">
+                    <div class="status-row">
+                        <span id="cb-link" class="cb-pill">connecting…</span>
+                        <span id="cb-user-state" class="cb-pill">customer offline</span>
+                        <span id="cb-consent-state" class="cb-pill">no consent</span>
+                        <md-outlined-button class="cb-end" @onclick="EndAsync">End session</md-outlined-button>
                     </div>
-                </section>
+
+                    <span id="cb-tool-state" class="cb-tool-state">no element selected</span>
+
+                    <div class="cb-tools">
+                        <md-outlined-text-field id="cb-type-input"
+                                                label="Text to type into the selected element"></md-outlined-text-field>
+                        <md-filled-tonal-button class="cb-send" @onclick="SendTextAsync">Send text</md-filled-tonal-button>
+                        <md-outlined-button class="cb-scrolldown" @onclick="ScrollDownAsync">Scroll down</md-outlined-button>
+                    </div>
+                </div>
             }
             else
             {
-                <section class="cb-card cb-empty-stage">
-                    <div>
-                        <strong>No session open</strong>
-                        <p class="cb-muted">Accept a request or open an active session from the left.</p>
-                    </div>
-                </section>
+                <div class="empty-stage">
+                    <strong>No session open</strong>
+                    <span>Accept a request or open an active session from the right.</span>
+                </div>
             }
         </section>
+
+        <aside class="cb-sessions">
+            <div class="sessions-panel">
+                <div class="sessions-head">
+                    <h2>Sessions</h2>
+                    <span>@_active.Count active · @_pending.Count waiting</span>
+                </div>
+
+                <section class="session-group">
+                    <h3>Active session</h3>
+
+                    @if (SelectedRequest is { } activeRequest)
+                    {
+                        <div class="session-row selected">
+                            <span class="session-dot"></span>
+                            <div class="session-body">
+                                <div class="session-line">
+                                    <span class="session-user">@activeRequest.User.DisplayName</span>
+                                    <span class="session-tenant">@activeRequest.TenantId</span>
+                                </div>
+                                <div class="session-page" title="@PageLabel(activeRequest)">@PageLabel(activeRequest)</div>
+                                @if (activeRequest.AcceptedAt is { } accepted)
+                                {
+                                    <div class="session-meta">accepted @FormatAge(accepted) ago</div>
+                                }
+                            </div>
+                        </div>
+                    }
+                    else
+                    {
+                        <p class="session-empty">No session open.</p>
+                    }
+                </section>
+
+                <section class="session-group">
+                    <h3>Requests</h3>
+
+                    @if (_pending.Count == 0)
+                    {
+                        <p class="session-empty">No one is waiting.</p>
+                    }
+                    else
+                    {
+                        @foreach (var request in _pending)
+                        {
+                            <div class="session-row">
+                                <span class="session-dot pending"></span>
+                                <div class="session-body">
+                                    <div class="session-line">
+                                        <span class="session-user">@request.User.DisplayName</span>
+                                        <span class="session-tenant">@request.TenantId</span>
+                                    </div>
+                                    <div class="session-page" title="@PageLabel(request)">@PageLabel(request)</div>
+                                    @if (!string.IsNullOrWhiteSpace(request.Note))
+                                    {
+                                        <div class="session-note">@request.Note</div>
+                                    }
+                                    <div class="session-meta">waiting @FormatAge(request.CreatedAt)</div>
+                                </div>
+                                <div class="session-actions">
+                                    <md-filled-tonal-button class="cb-accept"
+                                                            disabled="@_connecting"
+                                                            @onclick="() => AcceptAsync(request.Id)">
+                                        Accept
+                                    </md-filled-tonal-button>
+                                </div>
+                            </div>
+                        }
+                    }
+                </section>
+
+                <section class="session-group">
+                    <h3>Other sessions</h3>
+
+                    @if (!OtherActive.Any())
+                    {
+                        <p class="session-empty">No other active sessions.</p>
+                    }
+                    else
+                    {
+                        @foreach (var request in OtherActive)
+                        {
+                            <div class="session-row">
+                                <span class="session-dot"></span>
+                                <div class="session-body">
+                                    <div class="session-line">
+                                        <span class="session-user">@request.User.DisplayName</span>
+                                        <span class="session-tenant">@request.TenantId</span>
+                                    </div>
+                                    <div class="session-page" title="@PageLabel(request)">@PageLabel(request)</div>
+                                    @if (request.AcceptedAt is { } accepted)
+                                    {
+                                        <div class="session-meta">accepted @FormatAge(accepted) ago</div>
+                                    }
+                                </div>
+                                <div class="session-actions">
+                                    <md-text-button class="cb-open"
+                                                    disabled="@_connecting"
+                                                    @onclick="() => OpenAsync(request.Id)">
+                                        Open
+                                    </md-text-button>
+                                </div>
+                            </div>
+                        }
+                    }
+                </section>
+            </div>
+        </aside>
     </div>
 </div>
 

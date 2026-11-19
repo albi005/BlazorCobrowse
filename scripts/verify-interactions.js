@@ -89,7 +89,7 @@ async function startSession(browser) {
 
   await agent.goto(AGENT_URL, { waitUntil: 'networkidle' });
   await agent.waitForSelector('aside.cb-sessions', { timeout: 20000 });
-  await agent.locator('button.cb-btn.primary', { hasText: 'Accept' }).first().click();
+  await agent.locator('md-filled-tonal-button.cb-accept').first().click();
   await agent.waitForSelector('#cb-mirror', { timeout: 20000 });
   await customer.waitForFunction(
     () => document.querySelector('button.cbx-support-button')?.textContent.includes('connected'),
@@ -105,7 +105,7 @@ async function startSession(browser) {
 async function endSession(session) {
   const { agent } = session;
   await agent.bringToFront();
-  const end = agent.locator('button.cb-btn.danger', { hasText: 'End session' }).first();
+  const end = agent.locator('md-outlined-button.cb-end').first();
   if (await end.count()) {
     await end.click().catch(() => {});
     await agent.waitForTimeout(900);
@@ -258,8 +258,9 @@ const mirrorState = (frame) => frame.evaluate(() => ({
 
     // The older toolbar path still replaces a field's value.
     await mf.locator('#sample-notes').click();
-    await agent.locator('#cb-type-input').fill('Sent from the toolbar');
-    await agent.locator('button.cb-btn', { hasText: 'Send text' }).click();
+    await agent.locator('#cb-type-input').click();
+    await agent.keyboard.type('Sent from the toolbar');
+    await agent.locator('md-filled-tonal-button.cb-send').click();
     await agent.waitForTimeout(900);
     cs = await customerState(customer);
     check('Send text toolbar reaches the customer', cs.notes, 'Sent from the toolbar');
@@ -291,7 +292,7 @@ const mirrorState = (frame) => frame.evaluate(() => ({
     check('customer list add is mirrored', ms.items.join('|'), 'Second item|Third item|Fourth item');
 
     console.log('\n--- inner scroll container ---');
-    const scrollDown = agent.locator('button.cb-btn', { hasText: 'Scroll down' });
+    const scrollDown = agent.locator('md-outlined-button.cb-scrolldown');
     const frameBox = await agent.locator('#cb-mirror iframe').boundingBox();
     let scrollerBox = null;
     for (let i = 0; i < 6; i++) {

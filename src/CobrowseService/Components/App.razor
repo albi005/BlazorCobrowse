@@ -6,8 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
     <ResourcePreloader />
-    <link rel="stylesheet" href="@Assets["lib/bootstrap/dist/css/bootstrap.min.css"]" />
-    <link rel="stylesheet" href="@Assets["app.css"]" />
+    <link rel="stylesheet" href="@Assets["css/theme.css"]" />
     <link rel="stylesheet" href="@Assets["css/agent.css"]" />
     <link rel="stylesheet" href="@Assets["CobrowseService.styles.css"]" />
     <ImportMap />
@@ -18,6 +17,7 @@
 <body>
     <Routes @rendermode="InteractiveServer" />
     <ReconnectModal />
+    <script src="@Assets["lib/material/material.js"]"></script>
     <script src="@Assets["js/cobrowse-agent.js"]"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
 </body>
