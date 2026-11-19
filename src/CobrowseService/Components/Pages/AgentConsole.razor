@@ -1,3 +1,4 @@
+@page "/"
 @page "/agent"
 @using CobrowseService.Auth
 @using CobrowseService.Realtime
@@ -25,6 +26,10 @@
     <div class="agent-layout">
         <aside class="cb-sessions">
             <div class="sessions-panel">
+                <div class="sessions-auth">
+                    Signed in as <strong>@(_agent?.DisplayName ?? "unknown")</strong>
+                </div>
+
                 <div class="sessions-head">
                     <h2>Sessions</h2>
                     <span>@_active.Count active · @_pending.Count waiting</span>

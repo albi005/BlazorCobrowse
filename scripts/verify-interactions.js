@@ -15,7 +15,7 @@
 const { chromium } = require('playwright');
 
 const APP_URL = process.env.APP_URL ?? 'http://100.69.0.1:5010';
-const AGENT_URL = process.env.AGENT_URL ?? 'http://100.69.0.1:5232/agent';
+const AGENT_URL = process.env.AGENT_URL ?? 'http://100.69.0.1:5232/';
 const SERVICE_URL = process.env.SERVICE_URL ?? new URL(AGENT_URL).origin;
 const TENANT_ID = process.env.TENANT_ID ?? 'demo';
 const TENANT_KEY = process.env.TENANT_KEY ?? 'dev-tenant-key';

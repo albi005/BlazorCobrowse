@@ -27,7 +27,8 @@ dotnet run --project src/App --urls http://localhost:5010
 ```
 
 Open <http://localhost:5010>, click **Request remote support**, then open
-<http://localhost:5232/agent> and accept the request.
+<http://localhost:5232/> and accept the request. The console is the service
+root; `/agent` still resolves to the same page.
 
 ### Try it from a phone (Tailscale)
 
@@ -35,7 +36,7 @@ Both apps also listen on the Tailscale interface. With the phone on the same
 tailnet, open:
 
 - Tenant app: <http://100.69.0.1:5010>
-- Agent console: <http://100.69.0.1:5232/agent>
+- Agent console: <http://100.69.0.1:5232/>
 
 The sample configuration points `ServiceBaseUrl`, `PublicHubUrl`,
 `PublicBaseUrl` and `AllowedOrigins` at `100.69.0.1`. If your Tailscale IP

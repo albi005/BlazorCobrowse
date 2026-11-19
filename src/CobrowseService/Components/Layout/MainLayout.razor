@@ -1,26 +1,6 @@
 ﻿@inherits LayoutComponentBase
-@using CobrowseService.Auth
-@inject IAgentIdentityProvider Agents
 
 <div class="app-shell">
-    <header class="app-bar">
-        <a class="app-brand" href="">
-            <span class="app-brand-dot" aria-hidden="true"></span>
-            Cobrowse
-        </a>
-
-        <nav class="app-nav" aria-label="Main">
-            <NavLink class="app-nav-link" href="" Match="NavLinkMatch.All">Home</NavLink>
-            <NavLink class="app-nav-link" href="agent">Agent console</NavLink>
-        </nav>
-
-        <span class="app-spacer"></span>
-
-        <span class="app-user">
-            Signed in as <strong>@(Agents.GetCurrent()?.DisplayName ?? "unknown")</strong>
-        </span>
-    </header>
-
     <main class="app-main">
         @Body
     </main>

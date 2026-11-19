@@ -15,7 +15,7 @@
 //
 // Environment:
 //   APP_URL        default http://100.69.0.1:5010
-//   AGENT_URL      default http://100.69.0.1:5232/agent
+//   AGENT_URL      default http://100.69.0.1:5232/
 //   SERVICE_URL    default derived from AGENT_URL (origin)
 //   TENANT_ID      default demo
 //   TENANT_KEY     default dev-tenant-key
@@ -29,7 +29,7 @@
 const { chromium } = require('playwright');
 
 const APP_URL = process.env.APP_URL ?? 'http://100.69.0.1:5010';
-const AGENT_URL = process.env.AGENT_URL ?? 'http://100.69.0.1:5232/agent';
+const AGENT_URL = process.env.AGENT_URL ?? 'http://100.69.0.1:5232/';
 const SERVICE_URL = process.env.SERVICE_URL ?? new URL(AGENT_URL).origin;
 const TENANT_ID = process.env.TENANT_ID ?? 'demo';
 const TENANT_KEY = process.env.TENANT_KEY ?? 'dev-tenant-key';

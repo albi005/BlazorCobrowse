@@ -101,7 +101,7 @@ dotnet run --project src/App --urls "http://100.69.0.1:5010;http://localhost:501
 ```
 
 - Tenant app: <http://100.69.0.1:5010>
-- Agent console: <http://100.69.0.1:5232/agent>
+- Agent console: <http://100.69.0.1:5232/>
 - Service: <http://100.69.0.1:5232>
 
 Both bind to the Tailscale interface so a phone on the same tailnet can test.
