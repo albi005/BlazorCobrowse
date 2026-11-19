@@ -1,0 +1,22 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <InvariantGlobalization>false</InvariantGlobalization>
+
+    <!--
+      One version for the whole product. `App.Cobrowse` reports this on every
+      request and hub join (X-Cobrowse-Client / `client`) so the service can log
+      and display which plugin version a tenant instance is running. Tenants are
+      free to lag behind: see docs/compatibility.md.
+    -->
+    <CobrowseVersion>1.0.0</CobrowseVersion>
+    <Version>$(CobrowseVersion)</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>$(CobrowseVersion)</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+</Project>

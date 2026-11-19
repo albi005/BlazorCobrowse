@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Cobrowse</RootNamespace>
+    <AssemblyName>App.Cobrowse</AssemblyName>
+    <AddRazorSupportForMvc>false</AddRazorSupportForMvc>
+    <StaticWebAssetBasePath>_content/App.Cobrowse</StaticWebAssetBasePath>
+    <IsPackable>true</IsPackable>
+    <PackageId>App.Cobrowse</PackageId>
+    <Description>Drop-in cobrowsing for Blazor Server applications.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+</Project>

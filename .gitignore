@@ -1,0 +1,9 @@
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.suo
+scripts/node_modules/
+scripts/package-lock.json
+docs/*.png

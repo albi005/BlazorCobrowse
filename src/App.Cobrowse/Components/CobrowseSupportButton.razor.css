@@ -1,0 +1,71 @@
+.cbx-support {
+    display: inline-flex;
+    align-items: center;
+    gap: .6rem;
+}
+
+.cbx-support-button {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    border: 1px solid #c7d2fe;
+    background: #eef2ff;
+    color: #3730a3;
+    border-radius: 999px;
+    padding: .45rem .9rem;
+    font: inherit;
+    font-size: .85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, color .15s ease;
+    white-space: nowrap;
+}
+
+.cbx-support-button:hover:not(:disabled) {
+    background: #e0e7ff;
+    border-color: #a5b4fc;
+}
+
+.cbx-support-button:disabled {
+    cursor: progress;
+    opacity: .75;
+}
+
+.cbx-support-button.is-waiting {
+    background: #fef3c7;
+    border-color: #fcd34d;
+    color: #92400e;
+}
+
+.cbx-support-button.is-connected {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #166534;
+}
+
+.cbx-support-button.is-error {
+    background: #fef2f2;
+    border-color: #fca5a5;
+    color: #991b1b;
+}
+
+.cbx-support-dot {
+    width: .45rem;
+    height: .45rem;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: .7;
+}
+
+.cbx-support-button.is-connected .cbx-support-dot {
+    background: #16a34a;
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, .18);
+    opacity: 1;
+}
+
+.cbx-support-message {
+    margin: 0;
+    font-size: .78rem;
+    color: #991b1b;
+    max-width: 34ch;
+}

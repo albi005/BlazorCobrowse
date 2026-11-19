@@ -1,0 +1,127 @@
+/*
+ * Cobrowse plugin UI, injected on demand by cobrowse-client.js.
+ * Every element here carries `cbx-block`, so rrweb keeps it out of the stream
+ * and the agent never sees the session UI mirrored back at them.
+ */
+
+.cbx-banner {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(92vw, 460px);
+  padding: 8px 8px 8px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(15, 23, 42, 0.96);
+  color: #f8fafc;
+  box-shadow: 0 12px 32px rgba(2, 6, 23, 0.35);
+  font: 500 12px/1.35 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.cbx-banner-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.cbx-banner-title {
+  font-size: 12px;
+  letter-spacing: 0.01em;
+}
+
+.cbx-banner-detail {
+  color: #cbd5e1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cbx-banner-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.cbx-banner-dot.is-waiting {
+  background: #fbbf24;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.2);
+}
+
+.cbx-banner-dot.is-live {
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.22);
+}
+
+.cbx-banner button {
+  font: inherit;
+  font-weight: 600;
+  border: 0;
+  border-radius: 999px;
+  padding: 5px 11px;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.14);
+  color: #f8fafc;
+  white-space: nowrap;
+}
+
+.cbx-banner button:hover {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.cbx-banner button[data-action='end'] {
+  background: #dc2626;
+}
+
+.cbx-banner button[data-action='end']:hover {
+  background: #b91c1c;
+}
+
+/* Agent pointer drawn on the customer's page. */
+.cbx-remote-cursor {
+  position: fixed;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: rgba(239, 68, 68, 0.92);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
+  pointer-events: none;
+  z-index: 2147483001;
+  transition: left 0.08s linear, top 0.08s linear;
+}
+
+.cbx-remote-cursor.pulse {
+  animation: cbx-cursor-pulse 0.4s ease-out;
+}
+
+@keyframes cbx-cursor-pulse {
+  0% { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.45); }
+  100% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+}
+
+.cbx-cursor-label {
+  position: absolute;
+  left: 18px;
+  top: -3px;
+  font: 600 10px/1.5 system-ui, -apple-system, sans-serif;
+  color: #fff;
+  background: rgba(185, 28, 28, 0.94);
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.cbx-flash {
+  animation: cbx-flash-pulse 0.7s ease-out;
+}
+
+@keyframes cbx-flash-pulse {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.02); opacity: 0; }
+}

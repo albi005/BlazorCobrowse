@@ -1,0 +1,348 @@
+@page "/agent"
+@using CobrowseService.Auth
+@using CobrowseService.Realtime
+@using CobrowseService.Sessions
+@inject SupportRequestService Requests
+@inject JoinTicketService Tickets
+@inject IAgentIdentityProvider Agents
+@inject RequestNotifier Notifier
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<PageTitle>Agent console</PageTitle>
+
+<div class="cb-page">
+    <header class="cb-hero">
+        <div>
+            <h1>Agent console <span class="cb-tag">support view</span></h1>
+            <p>Pick up a waiting request. The mirror is rebuilt from the customer's DOM, not a video stream.</p>
+        </div>
+        <div class="cb-muted small">
+            Signed in as <strong>@(_agent?.DisplayName ?? "unknown")</strong>
+        </div>
+    </header>
+
+    @if (_error is not null)
+    {
+        <p class="cb-error">@_error</p>
+    }
+
+    @if (_notice is not null)
+    {
+        <p class="cb-ok">@_notice</p>
+    }
+
+    <section class="cb-card">
+        <h2>Waiting for an agent (@_pending.Count)</h2>
+
+        @if (_pending.Count == 0)
+        {
+            <p class="cb-muted">No one is waiting right now.</p>
+        }
+        else
+        {
+            <table class="cb-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Tenant</th>
+                        <th>Page</th>
+                        <th>Note</th>
+                        <th>Waiting</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var request in _pending)
+                    {
+                        <tr>
+                            <td>
+                                @request.User.DisplayName
+                                @if (!string.IsNullOrWhiteSpace(request.User.Email))
+                                {
+                                    <div class="cb-muted small">@request.User.Email</div>
+                                }
+                            </td>
+                            <td>@request.TenantId</td>
+                            <td>@(request.Page?.Title ?? request.Page?.Url ?? "—")</td>
+                            <td>@(request.Note ?? "—")</td>
+                            <td>@FormatAge(request.CreatedAt)</td>
+                            <td>
+                                <button class="cb-btn primary"
+                                        disabled="@_connecting"
+                                        @onclick="() => AcceptAsync(request.Id)">
+                                    Accept
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+
+    <section class="cb-card">
+        <h2>My active sessions (@_active.Count)</h2>
+
+        @if (_active.Count == 0)
+        {
+            <p class="cb-muted">No active sessions.</p>
+        }
+        else
+        {
+            <table class="cb-table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Tenant</th>
+                        <th>Page</th>
+                        <th>Accepted</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var request in _active)
+                    {
+                        <tr>
+                            <td>@request.User.DisplayName</td>
+                            <td>@request.TenantId</td>
+                            <td>@(request.Page?.Title ?? request.Page?.Url ?? "—")</td>
+                            <td>@(request.AcceptedAt is { } accepted ? FormatAge(accepted) + " ago" : "—")</td>
+                            <td>
+                                <button class="cb-btn"
+                                        disabled="@_connecting"
+                                        @onclick="() => OpenAsync(request.Id)">
+                                    Open
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+
+    @if (_selectedRequestId is not null)
+    {
+        <section class="cb-card">
+            <div class="cb-toolbar">
+                <span id="cb-link" class="cb-pill">connecting…</span>
+                <span id="cb-user-state" class="cb-pill">customer offline</span>
+                <span id="cb-consent-state" class="cb-pill">no consent</span>
+                <button class="cb-btn danger" @onclick="EndAsync">End session</button>
+            </div>
+
+            <div class="cb-tools">
+                <span id="cb-tool-state" class="cb-tool-state">no element selected</span>
+                <input id="cb-type-input" placeholder="text to type into the selected element" autocomplete="off" />
+                <button class="cb-btn" @onclick="SendTextAsync">Send text</button>
+                <button class="cb-btn" @onclick="ScrollDownAsync">Scroll down</button>
+            </div>
+
+            <div class="cb-mirror-shell">
+                <div id="cb-mirror" class="cb-mirror">
+                    <div class="cb-empty">Live mirror appears here once the customer grants viewing consent.</div>
+                </div>
+            </div>
+
+            <p class="cb-muted small">
+                Clicks in the mirror become synthetic DOM events on the customer's page.
+                The iframe is sandboxed without scripts, so nothing runs in the mirror itself.
+            </p>
+        </section>
+    }
+</div>
+
+@code {
+    private AgentIdentity? _agent;
+    private IReadOnlyList<SupportRequestSnapshot> _pending = [];
+    private IReadOnlyList<SupportRequestSnapshot> _active = [];
+    private string? _selectedRequestId;
+    private string? _error;
+    private string? _notice;
+    private bool _connecting;
+    private DotNetObjectReference<AgentConsole>? _self;
+
+    protected override void OnInitialized()
+    {
+        _agent = Agents.GetCurrent();
+        _self = DotNetObjectReference.Create(this);
+        Notifier.Changed += OnQueueChanged;
+        Refresh();
+    }
+
+    private void OnQueueChanged() => _ = InvokeAsync(Refresh);
+
+    private void Refresh()
+    {
+        if (_agent is null)
+            return;
+
+        _pending = Requests.ListPending();
+        _active = Requests.ListActiveForAgent(_agent.Id);
+        StateHasChanged();
+    }
+
+    private async Task AcceptAsync(string id)
+    {
+        if (_agent is null || _connecting)
+            return;
+
+        _connecting = true;
+        _error = null;
+        _notice = null;
+
+        try
+        {
+            var outcome = await Requests.AcceptAsync(id, _agent);
+            if (!outcome.Success)
+            {
+                _error = outcome.ErrorMessage;
+                return;
+            }
+
+            await ConnectAsync(id);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _connecting = false;
+        }
+    }
+
+    private async Task OpenAsync(string id)
+    {
+        if (_agent is null || _connecting)
+            return;
+
+        _connecting = true;
+        _error = null;
+        _notice = null;
+
+        try
+        {
+            await ConnectAsync(id);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _connecting = false;
+        }
+    }
+
+    private async Task ConnectAsync(string id)
+    {
+        if (_agent is null)
+            return;
+
+        var ticket = Tickets.Issue(id, TicketKind.Agent, _agent.Id, TimeSpan.FromMinutes(10));
+        _selectedRequestId = id;
+        Refresh();
+
+        await JS.InvokeVoidAsync("cobrowseAgent.connect", new
+        {
+            requestId = id,
+            ticket,
+            dotNetRef = _self
+        });
+    }
+
+    private async Task EndAsync()
+    {
+        await JS.InvokeVoidAsync("cobrowseAgent.end");
+    }
+
+    private async Task SendTextAsync()
+    {
+        await JS.InvokeVoidAsync("cobrowseAgent.sendText");
+    }
+
+    private async Task ScrollDownAsync()
+    {
+        await JS.InvokeVoidAsync("cobrowseAgent.scrollDown");
+    }
+
+    [JSInvokable]
+    public Task OnAgentState(string state, string? message)
+    {
+        if (state is "error" or "disconnected")
+            _error = message;
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public Task OnSessionState(bool customerOnline, bool view, bool control)
+    {
+        _notice = customerOnline
+            ? "Customer is online."
+            : "Waiting for the customer's browser to reconnect…";
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public Task OnConsent(bool view, bool control)
+    {
+        _notice = !view
+            ? "The customer paused screen sharing."
+            : control
+                ? "The customer granted view and control."
+                : "The customer granted view only.";
+
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public Task OnCustomerState(bool online)
+    {
+        _notice = online ? "Customer is online." : "Customer went offline.";
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    [JSInvokable]
+    public Task OnSessionEnded(string reason, string? message)
+    {
+        _selectedRequestId = null;
+        _notice = message ?? "The support session ended.";
+        Refresh();
+        return Task.CompletedTask;
+    }
+
+    private static string FormatAge(DateTimeOffset timestamp)
+    {
+        var age = DateTimeOffset.UtcNow - timestamp;
+        if (age < TimeSpan.Zero)
+            age = TimeSpan.Zero;
+
+        return age.TotalHours >= 1
+            ? $"{(int)age.TotalHours}h {age.Minutes}m"
+            : $"{age.Minutes}m {age.Seconds}s";
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Notifier.Changed -= OnQueueChanged;
+
+        try
+        {
+            await JS.InvokeVoidAsync("cobrowseAgent.disconnect");
+        }
+        catch
+        {
+            // The circuit may already be gone.
+        }
+
+        _self?.Dispose();
+    }
+}

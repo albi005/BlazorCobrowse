@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/App.Cobrowse/App.Cobrowse.csproj" />
+    <Project Path="src/App/App.csproj" />
+    <Project Path="src/CobrowseService/CobrowseService.csproj" />
+  </Folder>
+</Solution>

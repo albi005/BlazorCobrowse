@@ -1,0 +1,84 @@
+@implements IDisposable
+@inject CobrowseSession Session
+@inject IOptions<CobrowseOptions> OptionsAccessor
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+@{
+    var options = OptionsAccessor.Value;
+}
+
+<div class="cbx-support">
+    <button type="button"
+            class="cbx-support-button @ButtonClass"
+            @onclick="OnClickAsync"
+            disabled="@IsBusy">
+        <span class="cbx-support-dot" aria-hidden="true"></span>
+        @Label
+    </button>
+
+    @if (!string.IsNullOrEmpty(Snapshot.Message))
+    {
+        <p class="cbx-support-message" role="status">@Snapshot.Message</p>
+    }
+</div>
+
+@code {
+    private CobrowseSessionSnapshot _snapshot = CobrowseSessionSnapshot.Idle;
+
+    private CobrowseSessionSnapshot Snapshot => _snapshot;
+
+    private bool IsBusy => Snapshot.State == CobrowseUiState.Creating;
+
+    private string Label => Snapshot.State switch
+    {
+        CobrowseUiState.Creating => "Requesting support…",
+        CobrowseUiState.Waiting => "Waiting for an agent… (cancel)",
+        CobrowseUiState.Connected when Snapshot.AgentName is { Length: > 0 } agent => $"Agent {agent} is connected — end session",
+        CobrowseUiState.Connected => "Support session active — end session",
+        _ => OptionsAccessor.Value.ButtonLabel
+    };
+
+    private string ButtonClass => Snapshot.State switch
+    {
+        CobrowseUiState.Waiting => "is-waiting",
+        CobrowseUiState.Connected => "is-connected",
+        CobrowseUiState.Error => "is-error",
+        _ => ""
+    };
+
+    protected override void OnInitialized()
+    {
+        _snapshot = Session.Snapshot;
+        Session.Changed += OnSessionChanged;
+    }
+
+    private void OnSessionChanged()
+    {
+        _ = InvokeAsync(() =>
+        {
+            _snapshot = Session.Snapshot;
+            StateHasChanged();
+        });
+    }
+
+    private async Task OnClickAsync()
+    {
+        switch (Snapshot.State)
+        {
+            case CobrowseUiState.Waiting:
+            case CobrowseUiState.Connected:
+                await Session.EndAsync();
+                break;
+
+            case CobrowseUiState.Creating:
+                break;
+
+            default:
+                var auth = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+                await Session.StartAsync(auth.User);
+                break;
+        }
+    }
+
+    public void Dispose() => Session.Changed -= OnSessionChanged;
+}

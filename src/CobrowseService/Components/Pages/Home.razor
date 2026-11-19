@@ -1,0 +1,34 @@
+﻿@page "/"
+
+<PageTitle>Cobrowse service</PageTitle>
+
+<div class="cb-page">
+    <header class="cb-hero">
+        <div>
+            <h1>Cobrowse service</h1>
+            <p>
+                Tenant applications create support requests through the tenant API.
+                Agents pick them up in the console and see the customer's page as a
+                live DOM mirror.
+            </p>
+        </div>
+    </header>
+
+    <section class="cb-card">
+        <h2>Agent console</h2>
+        <p class="cb-muted">
+            Open the queue, accept a waiting request, and the customer's page appears
+            in the mirror.
+        </p>
+        <a class="cb-btn primary" href="agent">Open agent console</a>
+    </section>
+
+    <section class="cb-card">
+        <h2>Tenant API</h2>
+        <p class="cb-muted">
+            Tenants call <code>POST /api/v1/support-requests</code> with their tenant
+            key. The response contains a short-lived join token and the hub URL the
+            customer's browser uses.
+        </p>
+    </section>
+</div>

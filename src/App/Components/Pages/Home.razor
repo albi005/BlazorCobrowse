@@ -1,0 +1,229 @@
+﻿@page "/"
+
+<PageTitle>Sample tenant</PageTitle>
+
+<div class="container py-4">
+    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+        <div>
+            <h1 class="mb-1">Sample tenant application</h1>
+            <p class="text-muted mb-0">
+                A plain Blazor Server page with the cobrowsing plugin added. Every
+                control here is a normal Blazor component so you can test the mirror
+                and remote control.
+            </p>
+        </div>
+        <CobrowseSupportButton />
+    </div>
+
+    <div class="alert alert-primary" role="alert">
+        <strong>Try the sync:</strong> click <em>Request remote support</em>, accept the
+        request in the agent console, then use the controls below from the agent's
+        mirror. Clicks, typing, selects, checkboxes and scrolling should all flow back
+        to this page.
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h5 card-title">Text and live binding</h2>
+                    <p class="text-muted small">
+                        Type in the agent toolbar after selecting the input in the mirror.
+                    </p>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="sample-name">Your name</label>
+                        <input id="sample-name" class="form-control" placeholder="Type a name…"
+                               @bind="Name" @bind:event="oninput" />
+                        <div class="form-text">Hello, <strong>@(string.IsNullOrWhiteSpace(Name) ? "stranger" : Name)</strong>!</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="sample-notes">Notes</label>
+                        <textarea id="sample-notes" class="form-control" rows="3"
+                                  placeholder="A longer text area…"
+                                  @bind="Notes" @bind:event="oninput"></textarea>
+                        <div class="form-text">@Notes.Length characters</div>
+                    </div>
+
+                    <div class="mb-0">
+                        <label class="form-label" for="sample-color">Favourite colour</label>
+                        <select id="sample-color" class="form-select" @bind="Color">
+                            <option value="primary">Blue</option>
+                            <option value="success">Green</option>
+                            <option value="warning">Amber</option>
+                            <option value="danger">Red</option>
+                        </select>
+                        <div class="form-text">
+                            Selected:
+                            <span class="badge text-bg-@Color">@Color</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h5 card-title">Clicks and state</h2>
+                    <p class="text-muted small">
+                        Buttons use normal Blazor <code>@@onclick</code> handlers.
+                    </p>
+
+                    <div class="d-flex align-items-center gap-2 mb-3">
+                        <button class="btn btn-outline-danger" @onclick="Decrement">−</button>
+                        <span class="fs-4 fw-semibold" style="min-width: 3rem; text-align: center;">@Counter</span>
+                        <button class="btn btn-outline-success" @onclick="Increment">+</button>
+                        <button class="btn btn-outline-secondary ms-2" @onclick="ResetCounter">Reset</button>
+                    </div>
+
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="sample-subscribe"
+                               @bind="Subscribe" />
+                        <label class="form-check-label" for="sample-subscribe">
+                            Send me product updates
+                        </label>
+                    </div>
+                    <div class="form-text mb-3">
+                        @(Subscribe ? "Subscribed." : "Not subscribed.")
+                    </div>
+
+                    <div class="mb-3">
+                        <span class="form-label d-block">Contact preference</span>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="contact" id="contact-email"
+                                   checked="@(Contact == "email")" @onchange='() => Contact = "email"' />
+                            <label class="form-check-label" for="contact-email">Email</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="contact" id="contact-phone"
+                                   checked="@(Contact == "phone")" @onchange='() => Contact = "phone"' />
+                            <label class="form-check-label" for="contact-phone">Phone</label>
+                        </div>
+                        <div class="form-text">Preferred: @Contact</div>
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="sample-range">
+                            Satisfaction: <strong>@Satisfaction</strong>/10
+                        </label>
+                        <input id="sample-range" type="range" class="form-range" min="0" max="10"
+                               @bind="Satisfaction" @bind:event="oninput" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h2 class="h5 card-title">A small list</h2>
+            <p class="text-muted small">
+                Add items here, then use the agent's <em>Send text</em> and clicks to
+                edit or remove them.
+            </p>
+
+            <div class="input-group mb-3">
+                <input class="form-control" placeholder="New item…" @bind="NewItem" @bind:event="oninput" />
+                <button class="btn btn-primary" @onclick="AddItem" disabled="@(string.IsNullOrWhiteSpace(NewItem))">
+                    Add
+                </button>
+            </div>
+
+            @if (Items.Count == 0)
+            {
+                <p class="text-muted mb-0">No items yet.</p>
+            }
+            else
+            {
+                <ul class="list-group">
+                    @foreach (var item in Items)
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>@item</span>
+                            <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveItem(item)">
+                                Remove
+                            </button>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h2 class="h5 card-title">Submit</h2>
+            <p class="text-muted small">
+                A submit-style action to test the end of a form flow.
+            </p>
+            <button class="btn btn-success" @onclick="Submit">Submit feedback</button>
+
+            @if (SubmittedAt is { } submittedAt)
+            {
+                <div class="alert alert-success mt-3 mb-0">
+                    Submitted at @submittedAt.ToLocalTime().ToString("HH:mm:ss").
+                    Name: <strong>@(string.IsNullOrWhiteSpace(Name) ? "stranger" : Name)</strong>,
+                    satisfaction: <strong>@Satisfaction</strong>/10.
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-body">
+            <h2 class="h5 card-title">Scroll test</h2>
+            <p class="text-muted small">
+                Use the agent's <em>Scroll down</em> button to move this page.
+            </p>
+            @for (var i = 1; i <= 12; i++)
+            {
+                <p>
+                    Paragraph @i. The customer's page is mirrored as DOM, not video, so
+                    text stays crisp and the agent can select elements directly. This
+                    filler gives the agent something to scroll through.
+                </p>
+            }
+        </div>
+    </div>
+
+    <p class="text-muted small mt-4">
+        The agent console runs in the cobrowse service at
+        <a href="http://100.69.0.1:5232/agent" target="_blank">http://100.69.0.1:5232/agent</a>.
+    </p>
+</div>
+
+@code {
+    private string Name { get; set; } = "";
+    private string Notes { get; set; } = "";
+    private string Color { get; set; } = "blue";
+    private int Counter { get; set; }
+    private bool Subscribe { get; set; }
+    private string Contact { get; set; } = "email";
+    private int Satisfaction { get; set; } = 7;
+    private string NewItem { get; set; } = "";
+    private DateTimeOffset? SubmittedAt { get; set; }
+
+    private readonly List<string> Items = ["First item", "Second item"];
+
+    private void Increment() => Counter++;
+
+    private void Decrement() => Counter--;
+
+    private void ResetCounter() => Counter = 0;
+
+    private void AddItem()
+    {
+        var value = NewItem.Trim();
+        if (value.Length == 0)
+            return;
+
+        Items.Add(value);
+        NewItem = "";
+    }
+
+    private void RemoveItem(string item) => Items.Remove(item);
+
+    private void Submit() => SubmittedAt = DateTimeOffset.Now;
+}
