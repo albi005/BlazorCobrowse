@@ -121,4 +121,4 @@ and the plugin reports its version in `X-Cobrowse-Client`. See
 
 - Screen-sharing fallback when rrweb cannot capture a page.
 - RustDesk integration for full remote control.
-- Redis-backed request store and SignalR backplane for scale-out.
+- ~~redis-backed request store and SignalR backplane for scale-out.~~ not needed
