@@ -32,6 +32,8 @@ window.cobrowseAgent = (function () {
   let lastCursor = null;
   let attachedDoc = null;
   let detachControls = null;
+  let customerCursorEl = null;
+  let customerCursorTimer = null;
 
   function el(id) { return document.getElementById(id); }
 
@@ -94,6 +96,7 @@ window.cobrowseAgent = (function () {
     detachControls?.();
     detachControls = null;
     attachedDoc = null;
+    hideCustomerCursor();
     if (replayer) {
       try { replayer.destroy(); } catch { /* ignore */ }
       replayer = null;
@@ -220,9 +223,67 @@ window.cobrowseAgent = (function () {
       consent.view ? (consent.control ? 'ok' : 'warn') : 'err');
   }
 
+  // ---------------------------------------------------------- customer cursor
+  //
+  // rrweb streams the customer's mousemove positions. Draw a dot in the mirror
+  // so the agent can see where the customer is pointing, the counterpart of the
+  // agent cursor the plugin draws on the customer's page.
+
+  function hideCustomerCursor() {
+    clearTimeout(customerCursorTimer);
+    customerCursorTimer = null;
+    customerCursorEl?.remove();
+    customerCursorEl = null;
+  }
+
+  function showCustomerCursor(x, y) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    const doc = attachedDoc || replayer?.iframe?.contentDocument;
+    const body = doc?.body;
+    if (!body) return;
+
+    if (!customerCursorEl || customerCursorEl.ownerDocument !== doc) {
+      customerCursorEl = doc.createElement('div');
+      customerCursorEl.setAttribute('aria-hidden', 'true');
+      customerCursorEl.setAttribute('data-cb-customer-cursor', '');
+      customerCursorEl.style.cssText = [
+        'position:fixed', 'width:14px', 'height:14px', 'margin:-7px 0 0 -7px',
+        'border-radius:50%', 'background:#2563eb', 'border:2px solid #fff',
+        'box-shadow:0 0 0 3px rgba(37,99,235,.25)', 'pointer-events:none',
+        'z-index:2147483647', 'transition:opacity .2s linear', 'opacity:0'
+      ].join(';');
+
+      const label = doc.createElement('span');
+      label.textContent = 'Customer';
+      label.style.cssText = [
+        'position:absolute', 'left:16px', 'top:-4px', 'white-space:nowrap',
+        'font:600 10px/1.5 system-ui,-apple-system,sans-serif', 'color:#fff',
+        'background:rgba(29,78,216,.94)', 'padding:1px 5px', 'border-radius:4px'
+      ].join(';');
+      customerCursorEl.appendChild(label);
+    }
+
+    if (customerCursorEl.parentNode !== body) body.appendChild(customerCursorEl);
+    customerCursorEl.style.left = `${x}px`;
+    customerCursorEl.style.top = `${y}px`;
+    customerCursorEl.style.opacity = '1';
+
+    clearTimeout(customerCursorTimer);
+    customerCursorTimer = setTimeout(() => {
+      if (customerCursorEl) customerCursorEl.style.opacity = '0';
+    }, 3000);
+  }
+
   function apply(event) {
     const now = performance.now();
     const isScroll = event.type === 3 && event.data?.source === 3;
+
+    // rrweb source 1 is mouse move, source 6 is touch move.
+    if (event.type === 3 && (event.data?.source === 1 || event.data?.source === 6)) {
+      const positions = event.data.positions;
+      const last = Array.isArray(positions) ? positions[positions.length - 1] : null;
+      if (last) showCustomerCursor(Number(last.x), Number(last.y));
+    }
 
     // While the agent is scrolling, the customer's replay of the same scroll
     // would push the mirror back to an older position. Ignore those echoes
@@ -575,15 +636,51 @@ window.cobrowseAgent = (function () {
       rangeTimer ??= setTimeout(flushRanges, 40);
     };
     const onSubmit = (event) => event.preventDefault();
+
+    // Real scroll positions per scroller. The customer's delta comes from how
+    // far the mirror actually moved, not from the raw wheel event: line-mode
+    // wheels, smooth scrolling and momentum all make the event delta differ
+    // from the pixels scrolled, which left the two sides desynced.
+    const scrollPositions = new WeakMap();
+    const rootScroller = () => doc.scrollingElement || doc.documentElement;
+    const seedScroller = (scroller) => {
+      if (scroller && !scrollPositions.has(scroller)) {
+        scrollPositions.set(scroller, { top: scroller.scrollTop, left: scroller.scrollLeft });
+      }
+    };
+    seedScroller(rootScroller());
+
     const onMouseMove = (event) => {
       lastCursor = { x: event.clientX, y: event.clientY };
+      seedScroller(scrollableAncestor(event.target, doc));
       sendCursor(doc);
     };
-    const onScroll = () => {
+    const onScroll = (event) => {
+      const target = event.target;
+      const scroller = target === doc ? rootScroller() : target;
+
+      if (scroller && scroller.nodeType === 1) {
+        const top = scroller.scrollTop;
+        const left = scroller.scrollLeft;
+        const previous = scrollPositions.get(scroller);
+        scrollPositions.set(scroller, { top, left });
+
+        // Movement inside the gesture window is the agent's; a scroll outside
+        // it is the customer's replay arriving, which must not be echoed back.
+        if (previous && performance.now() < agentScrollUntil) {
+          const dx = left - previous.left;
+          const dy = top - previous.top;
+          if (dx || dy) {
+            queueScroll(scrollNodeId(scroller, doc), dx, dy);
+            // Momentum keeps the window open until the mirror settles.
+            agentScrollUntil = performance.now() + 250;
+          }
+        }
+      }
+
       // The pointer's viewport position does not change when the mirror
       // scrolls, but its document position does. Refresh the dot so it stays
-      // under the agent's pointer. Scroll commands are sent from the gesture
-      // handlers below, never from this replay-driven event.
+      // under the agent's pointer.
       sendCursor(doc, true);
     };
 
@@ -591,39 +688,30 @@ window.cobrowseAgent = (function () {
       agentScrollUntil = performance.now() + 600;
     };
 
-    // Desktop wheel: let the mirror scroll natively for instant feedback and
-    // send the same delta to the customer. The nearest scrollable ancestor is
-    // the target, so a wheel over an inner container does not scroll the page.
-    // The replay echo is ignored while the gesture is active.
+    // Desktop wheel: let the mirror scroll natively for instant feedback. The
+    // scroll listener above forwards the pixels that really moved. The nearest
+    // scrollable ancestor is the target, so a wheel over an inner container
+    // does not scroll the page.
     const onWheel = (event) => {
-      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? doc.documentElement.clientHeight : 1;
       const scroller = scrollableAncestor(event.target, doc);
-      const nodeId = scrollNodeId(scroller, doc);
-      const dx = event.deltaX * unit;
-      const dy = event.deltaY * unit;
+      seedScroller(scroller);
       lastCursor = { x: event.clientX, y: event.clientY };
       sendCursor(doc);
       markAgentScroll();
-      // The browser may apply the native scroll before dispatching the wheel
-      // event to JS. Read the real position next frame instead of predicting
-      // scrollTop + delta, or the echo guard waits for a position that never
-      // arrives and the mirror stops following the customer.
       requestAnimationFrame(() => {
         setScrollTarget(scroller, scroller.scrollTop, scroller.scrollLeft);
       });
-      queueScroll(nodeId, dx, dy);
     };
 
     // Touch: drive the mirror manually so finger deltas and the customer's
     // scroll stay in lockstep (native momentum would overshoot the delta).
     let touchLast = null;
     let touchScroller = null;
-    let touchNodeId = '';
     const onTouchStart = (event) => {
       const touch = event.touches[0];
       if (touch) touchLast = { x: touch.clientX, y: touch.clientY };
       touchScroller = scrollableAncestor(event.target, doc);
-      touchNodeId = scrollNodeId(touchScroller, doc);
+      seedScroller(touchScroller);
       markAgentScroll();
     };
     const onTouchMove = (event) => {
@@ -636,16 +724,14 @@ window.cobrowseAgent = (function () {
       lastCursor = { x: touch.clientX, y: touch.clientY };
       sendCursor(doc);
       markAgentScroll();
-      const scroller = touchScroller || doc.scrollingElement || doc.documentElement;
+      const scroller = touchScroller || rootScroller();
       scroller.scrollTop += dy;
       scroller.scrollLeft += dx;
       setScrollTarget(scroller, scroller.scrollTop, scroller.scrollLeft);
-      queueScroll(touchNodeId, dx, dy);
     };
     const onTouchEnd = () => {
       touchLast = null;
       touchScroller = null;
-      touchNodeId = '';
     };
 
     const onKeyDown = (event) => {
@@ -666,7 +752,6 @@ window.cobrowseAgent = (function () {
       }
 
       const scroller = scrollableAncestor(event.target, doc);
-      const nodeId = scrollNodeId(scroller, doc);
       let dy = 0;
       if (event.key === 'ArrowDown') dy = 40;
       else if (event.key === 'ArrowUp') dy = -40;
@@ -679,7 +764,6 @@ window.cobrowseAgent = (function () {
       markAgentScroll();
       scroller.scrollTop += dy;
       setScrollTarget(scroller, scroller.scrollTop, scroller.scrollLeft);
-      queueScroll(nodeId, 0, dy);
     };
 
     // Menu paste (or Ctrl+V the browser handles itself) still has clipboard
@@ -756,7 +840,6 @@ window.cobrowseAgent = (function () {
     agentScrollUntil = performance.now() + 600;
     scroller.scrollTop += step;
     setScrollTarget(scroller, scroller.scrollTop, scroller.scrollLeft);
-    queueScroll('', 0, step);
   }
 
   async function end() {

@@ -25,9 +25,14 @@ Working and verified end to end:
   gives the agent a live rrweb mirror and view consent.
 - Customer → agent scroll sync.
 - Agent → customer scroll sync via the "Scroll down" button and mouse wheel.
+  Deltas are measured from the mirror's real movement (not the raw wheel event)
+  and applied with `behavior: 'instant'`, so the two sides keep the same offset
+  even with Bootstrap's `scroll-behavior: smooth`.
 - Inner scroll containers scroll on both sides; a wheel or touch drag resolves
   the nearest scrollable ancestor and sends its `data-cb-id`. The page itself
   stays put.
+- The customer's pointer is drawn in the mirror (blue dot labelled
+  "Customer"), from rrweb mousemove/touchmove.
 - No wobble after an agent gesture settles.
 - The mirror renders at the customer's native viewport size (no scaling).
 - Cursor dot is anchored to document coordinates and stays under the agent's
@@ -160,6 +165,12 @@ The script checks:
   `document.hidden`, and `visibilitychange` flushes any pending batch. If
   feedback is slow, check whether the customer window is fully behind another
   window. Visible tabs batch at `FLUSH_INTERVAL_MS` (60ms).
+- **Smooth scrolling is the default here.** Bootstrap sets
+  `scroll-behavior: smooth` on `:root`. `scrollBy`/`scrollTo` with
+  `behavior: 'auto'`, and even assigning `scrollTop`, animate; rapid deltas
+  then interrupt each other and the customer falls behind. Scroll commands use
+  `behavior: 'instant'` (`setScroll` in the capture module). Clicks still use
+  `scrollIntoView({behavior:'smooth'})` on purpose.
 - **Background logs** from the long-running dev servers, if still present:
   `/tmp/opencode/cobrowse-app.log`, `/tmp/opencode/cobrowse-service.log`.
 

@@ -83,7 +83,7 @@ export async function createCapture({ maskPasswords, onEvent }) {
     // `input: 'last'` makes rrweb listen to `change` only, so a keystroke typed
     // by the agent would not show up in the mirror until the field blurred.
     // Typing is low volume; mirror every input event instead.
-    sampling: { mousemove: 50, scroll: 100, input: 0 }
+    sampling: { mousemove: 50, mousemoveCallback: 100, scroll: 100, input: 0 }
   });
 
   return {
@@ -126,8 +126,25 @@ function fire(el, types) {
   }
 }
 
-function setNativeValue(el, value) {
-  if (el instanceof HTMLSelectElement) {
+/**
+ * Scroll a box without animation. Bootstrap sets `scroll-behavior: smooth` on
+ * `:root`, and both `scrollBy` and assigning `scrollTop` obey it, so rapid
+ * deltas interrupt each other's animations and the customer falls behind the
+ * agent's mirror. `behavior: 'instant'` bypasses the CSS.
+ */
+function setScroll(scroller, top, left) {
+  try {
+    scroller.scrollTo({ top, left, behavior: 'instant' });
+  } catch {
+    const previous = scroller.style.scrollBehavior;
+    scroller.style.scrollBehavior = 'auto';
+    scroller.scrollTop = top;
+    scroller.scrollLeft = left;
+    scroller.style.scrollBehavior = previous;
+  }
+}
+
+function setNativeValue(el, value) {  if (el instanceof HTMLSelectElement) {
     if (el.multiple && typeof value === 'string' && value.startsWith('[')) {
       try {
         const wanted = new Set(JSON.parse(value));
@@ -502,8 +519,9 @@ export function applyControl(nodeId, action, value) {
     const top = Number(delta.top) || 0;
     const left = Number(delta.left) || 0;
     const el = nodeId ? resolve(nodeId) : null;
-    if (el) el.scrollBy({ top, left, behavior: 'auto' });
-    else window.scrollBy({ top, left, behavior: 'auto' });
+    // Assign the position without animation; see setScroll.
+    const scroller = el || document.scrollingElement || document.documentElement;
+    setScroll(scroller, scroller.scrollTop + top, scroller.scrollLeft + left);
     return;
   }
 
@@ -523,8 +541,9 @@ export function applyControl(nodeId, action, value) {
     const top = target.maxTop > 0 ? Math.round((target.top / target.maxTop) * maxTop) : target.top;
     const left = target.maxLeft > 0 ? Math.round((target.left / target.maxLeft) * maxLeft) : target.left;
 
-    if (el) el.scrollTo({ top, left, behavior: 'auto' });
-    else window.scrollTo({ top, left, behavior: 'auto' });
+    // Direct assignment, like the delta path: the page's `scroll-behavior`
+    // must not animate an absolute correction.
+    setScroll(scroller, top, left);
     return;
   }
 

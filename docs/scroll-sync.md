@@ -68,6 +68,19 @@ container.
 `queueScroll(nodeId, dx, dy)` accumulates deltas in a `Map` keyed by node id and
 flushes once every **40 ms**. A burst of wheel ticks becomes one round-trip.
 
+### Deltas come from real movement
+
+The delta is not the raw wheel event. It is the change in the mirror's actual
+`scrollTop`/`scrollLeft`, measured in the scroll listener. Reading positions
+instead of trusting `event.deltaY` makes line-mode wheels (Firefox mice),
+browser smoothing and momentum all arrive as the same number of pixels the
+mirror really moved. The position map is seeded from the scroller on attach and
+on pointer move, so the first tick already has a baseline.
+
+Only movement inside the gesture window is forwarded; a scroll outside it is
+the customer's replay and must not be echoed back. Each forwarded delta
+extends the window by 250 ms so trailing momentum is included.
+
 ### Echo suppression
 
 The mirror receives the customer's replay of the same scroll. Without a guard
@@ -115,17 +128,18 @@ divided by the scale factor too, or the mapping breaks again.
 ## Customer side (`src/App.Cobrowse/wwwroot/js/cobrowse-capture.js`)
 
 `applyControl(…, 'scroll', …)` parses the JSON (or a bare number for legacy
-clients) and calls:
+clients) and calls `setScroll(scroller, scrollTop + top, scrollLeft + left)`.
 
-```js
-el ? el.scrollBy({ top, left, behavior: 'auto' })
-   : window.scrollBy({ top, left, behavior: 'auto' });
-```
+`setScroll` uses `scrollTo({ behavior: 'instant' })`. Bootstrap sets
+`scroll-behavior: smooth` on `:root`, and **both** `scrollBy({behavior:'auto'})`
+and assigning `scrollTop` obey it. With smooth scrolling, each 40 ms delta
+interrupted the previous animation and lost the remaining distance; the
+customer fell further behind the agent with every wheel tick, and a click
+"fixed" it only because the click handler scrolls the target into view. The
+instant behaviour is the fix; the fallback temporarily sets the inline style to
+`auto` for browsers without `'instant'`.
 
-`behavior: 'auto'` is deliberate. Smooth scrolling here is a second animation
-that fights the next delta.
-
-## Cursor dot
+## Cursor dot (customer side)
 
 The agent sends `Cursor` with both viewport percentages and document
 coordinates. The customer prefers document coordinates (`docX`/`docY`), so the
@@ -133,7 +147,17 @@ dot stays anchored to the same point in the page when either side scrolls. It
 falls back to viewport percentages for older agents.
 
 The agent's `scroll` listener does **not** send scroll commands; it only
-refreshes the cursor dot. Sending from there would create the echo loop again.
+refreshes the cursor dot and measures movement (see above). Sending from there
+would create the echo loop again.
+
+## Customer cursor (agent side)
+
+rrweb's mousemove (source 1) and touchmove (source 6) events carry the
+customer's `clientX`/`clientY`. The agent draws a blue "Customer" dot in the
+mirror iframe at those viewport coordinates. It is `position: fixed`, so
+scrolling the mirror does not drag it, and it fades after 3 s without movement.
+A full-snapshot rebuild replaces the iframe; the dot is recreated lazily on the
+next move.
 
 ## Known limitations
 

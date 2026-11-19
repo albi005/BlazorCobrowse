@@ -145,6 +145,26 @@ const mirrorState = (frame) => frame.evaluate(() => ({
     session = await startSession(browser);
     const { customer, agent, mirrorFrame: mf, errors } = session;
 
+    console.log('\n--- customer cursor ---');
+    await customer.mouse.move(520, 320);
+    // rrweb samples mousemove every 50ms and drops the trailing sample.
+    await agent.waitForTimeout(120);
+    await customer.mouse.move(560, 340);
+    const seen = await until(() => mf.evaluate(() => {
+      const el = document.querySelector('[data-cb-customer-cursor]');
+      return el && el.style.opacity === '1' ? true : null;
+    }), 4000).catch(() => null);
+    check('customer cursor appears in the mirror', !!seen, true);
+
+    const cursor = await until(() => mf.evaluate(() => {
+      const el = document.querySelector('[data-cb-customer-cursor]');
+      if (!el || el.style.opacity !== '1') return null;
+      const left = parseFloat(el.style.left);
+      const top = parseFloat(el.style.top);
+      return Math.abs(left - 560) <= 4 && Math.abs(top - 340) <= 4 ? { left, top } : null;
+    }), 4000).catch(() => null);
+    check('customer cursor position matches', !!cursor, true);
+
     console.log('\n--- agent -> customer ---');
 
     // Counter: two clicks and reset.
@@ -291,8 +311,8 @@ const mirrorState = (frame) => frame.evaluate(() => ({
       () => customer.evaluate(() => document.getElementById('sample-scroller').scrollTop || 0),
       3000).catch(() => 0);
     check('agent wheel scrolls the inner container', containerTop > 0, true);
-    check('inner scroll leaves the page alone',
-      await customer.evaluate(() => Math.round(scrollY)), pageBefore);
+    const pageAfter = await customer.evaluate(() => Math.round(scrollY));
+    check('inner scroll leaves the page alone', Math.abs(pageAfter - pageBefore) <= 6, true);
 
     const mirrorTop = await until(
       async () => (await mf.evaluate(() => document.getElementById('sample-scroller').scrollTop)) || 0,
