@@ -272,6 +272,13 @@ window.cobrowseAgent = (function () {
 
     replayer.startLive(Date.now());
     replayer.enableInteract();
+    // rrweb's replay applies scrolls with behavior:'smooth' unless the event is
+    // marked synchronous. That animation fights the agent's own scroll and
+    // makes the mirror drift back and forth. Force instant scrolls.
+    if (typeof replayer.applyScroll === 'function') {
+      const originalApplyScroll = replayer.applyScroll.bind(replayer);
+      replayer.applyScroll = (event) => originalApplyScroll(event, true);
+    }
     replayer.on('fullsnapshot-rebuilded', onRebuilt);
     window.__cbReplayer = replayer;
 
@@ -311,12 +318,15 @@ window.cobrowseAgent = (function () {
     const shell = document.querySelector('.cb-mirror-shell');
     const wrapper = replayer?.wrapper;
     if (!shell || !wrapper) return;
-    const width = wrapper.offsetWidth || 1280;
     const height = wrapper.offsetHeight || 900;
-    const scale = Math.min(1, (shell.clientWidth - 2) / width);
+
+    // Render the mirror at the customer's native viewport size, like the PoC.
+    // Scaling the mirror made wheel deltas and document deltas disagree, which
+    // is what made agent-driven scrolling wobble. The shell scrolls/pans when
+    // the customer's viewport is wider than the agent's panel.
     wrapper.style.transformOrigin = 'top left';
-    wrapper.style.transform = `scale(${scale})`;
-    shell.style.height = `${Math.min(window.innerHeight * 0.7, height * scale)}px`;
+    wrapper.style.transform = 'none';
+    shell.style.height = `${Math.min(window.innerHeight * 0.7, height)}px`;
   }
 
   function queueScroll(nodeId, dx, dy) {
@@ -431,7 +441,13 @@ window.cobrowseAgent = (function () {
       lastCursor = { x: event.clientX, y: event.clientY };
       sendCursor(doc);
       markAgentScroll();
-      setScrollTarget(scroller, scroller.scrollTop + dy, scroller.scrollLeft + dx);
+      // The browser may apply the native scroll before dispatching the wheel
+      // event to JS. Read the real position next frame instead of predicting
+      // scrollTop + delta, or the echo guard waits for a position that never
+      // arrives and the mirror stops following the customer.
+      requestAnimationFrame(() => {
+        setScrollTarget(scroller, scroller.scrollTop, scroller.scrollLeft);
+      });
       queueScroll('', dx, dy);
     };
 
