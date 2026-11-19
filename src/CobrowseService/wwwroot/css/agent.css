@@ -55,9 +55,23 @@
   display: flex;
   align-items: center;
   gap: .5rem;
-  flex-wrap: wrap;
   margin-bottom: .75rem;
 }
+
+/* The status row keeps one fixed line. Wrapping on a longer pill text used to
+   push the mirror down while a session was connecting or reconnecting. */
+.cb-toolbar {
+  flex-wrap: nowrap;
+  min-height: 2.25rem;
+  overflow: hidden;
+}
+
+.cb-toolbar .cb-btn.danger {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.cb-tools { flex-wrap: wrap; }
 
 .cb-toolbar input, .cb-tools input {
   font: inherit;
@@ -67,7 +81,16 @@
   min-width: 220px;
 }
 
-.cb-tool-state { font-size: .8rem; color: var(--cb-muted); flex: 1 1 100%; }
+.cb-tool-state {
+  flex: 1 1 100%;
+  display: block;
+  min-width: 0;
+  font-size: .8rem;
+  color: var(--cb-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .cb-btn {
   border: 1px solid var(--cb-line);
@@ -97,6 +120,12 @@
 
 .cb-pill {
   display: inline-block;
+  white-space: nowrap;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: .75rem;
   font-weight: 600;
   padding: .2rem .55rem;

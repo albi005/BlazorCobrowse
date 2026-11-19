@@ -286,8 +286,6 @@ const mirrorState = (frame) => frame.evaluate(() => ({
     check('customer counter is mirrored', ms.counter, '− 1 + Reset');
     check('customer list add is mirrored', ms.items.join('|'), 'Second item|Third item|Fourth item');
 
-    // Hidden/occluded tabs have their 60ms timers clamped to ~1s. The batcher
-    // must flush from a microtask there, or agent feedback takes a second.
     console.log('\n--- inner scroll container ---');
     const scrollDown = agent.locator('button.cb-btn', { hasText: 'Scroll down' });
     const frameBox = await agent.locator('#cb-mirror iframe').boundingBox();
@@ -333,6 +331,20 @@ const mirrorState = (frame) => frame.evaluate(() => ({
         return Math.abs(top - 300) <= 4 ? top : 0;
       }, 3000).catch(() => -1);
     check('customer inner scroll is mirrored', customerTop, 300);
+
+    // Status text must not reflow the card: a longer pill used to wrap the row
+    // and push the mirror down.
+    const mirrorBefore = await agent.locator('#cb-mirror').boundingBox();
+    await agent.evaluate(() => {
+      document.getElementById('cb-link').textContent = 'reconnecting to the customer';
+      document.getElementById('cb-user-state').textContent = 'customer offline';
+      document.getElementById('cb-consent-state').textContent = 'view only, control disabled';
+      document.getElementById('cb-tool-state').textContent =
+        'selected <input> · cb36 · "A deliberately long element label that used to wrap"';
+    });
+    const mirrorAfter = await agent.locator('#cb-mirror').boundingBox();
+    check('status text does not move the mirror',
+      Math.abs(mirrorAfter.y - mirrorBefore.y) <= 1, true);
 
     // Hidden/occluded tabs have their 60ms timers clamped to ~1s. The batcher
     // must flush from a microtask there, or agent feedback takes a second.
