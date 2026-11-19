@@ -320,8 +320,13 @@ window.cobrowseAgent = (function () {
   }
 
   function initReplayer() {
+    const root = el('cb-mirror');
+    // The markup ships a consent placeholder; once the replay starts it would
+    // sit above the iframe and push the customer's page down.
+    root?.querySelector('.cb-empty')?.remove();
+
     replayer = new window.rrweb.Replayer([], {
-      root: el('cb-mirror'),
+      root,
       liveMode: true,
       useVirtualDom: false,
       showDebug: false,

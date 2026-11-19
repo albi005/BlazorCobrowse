@@ -126,6 +126,9 @@ const field = (customer, id) => customer.evaluate((fieldId) => {
     session = await startSession(browser);
     const { customer, agent, frame, errors } = session;
 
+    const placeholderGone = await agent.evaluate(() => !document.querySelector('#cb-mirror > .cb-empty'));
+    check('consent placeholder is removed when the replay starts', placeholderGone, true);
+
     // Click the mirror field. The customer must focus it and show the ring.
     await frame.locator('#sample-name').click();
     await agent.waitForTimeout(400);
