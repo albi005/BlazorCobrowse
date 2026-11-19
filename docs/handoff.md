@@ -165,6 +165,10 @@ The script checks:
   `document.hidden`, and `visibilitychange` flushes any pending batch. If
   feedback is slow, check whether the customer window is fully behind another
   window. Visible tabs batch at `FLUSH_INTERVAL_MS` (60ms).
+- **No auto-scroll on control.** `focus()` uses `preventScroll` and a click no
+  longer calls `scrollIntoView`. The customer's viewport moves only when the
+  agent scrolls; focusing a field elsewhere in the page does not pull it into
+  view.
 - **Smooth scrolling is the default here.** Bootstrap sets
   `scroll-behavior: smooth` on `:root`. `scrollBy`/`scrollTo` with
   `behavior: 'auto'`, and even assigning `scrollTop`, animate; rapid deltas

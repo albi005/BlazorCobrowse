@@ -10,6 +10,7 @@
 //   * Backspace
 //   * Enter blurs a single-line field, inserts a newline in a textarea
 //   * the mirror shows the same value
+//   * clicking or focusing does not scroll the customer's page
 //
 // Run with both servers up (see README). Exit code is non-zero on failure.
 //
@@ -189,6 +190,14 @@ const field = (customer, id) => customer.evaluate((fieldId) => {
     }));
     check('select change reaches the customer', color.value, 'danger');
     check('select label follows', color.label, 'Selected: danger');
+
+    // Focusing a field must not move the customer's page.
+    await customer.evaluate(() => window.scrollTo(0, 500));
+    await agent.waitForTimeout(500);
+    await frame.locator('#sample-name').click();
+    await agent.waitForTimeout(500);
+    const scrollAfterClick = await customer.evaluate(() => Math.round(scrollY));
+    check('click/focus does not auto-scroll the customer', scrollAfterClick, 500);
 
     check('no console errors', errors.join(' | '), '');
   } catch (error) {

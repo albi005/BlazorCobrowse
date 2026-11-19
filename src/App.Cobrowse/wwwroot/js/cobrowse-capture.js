@@ -551,9 +551,10 @@ export function applyControl(nodeId, action, value) {
   if (!el) return;
 
   if (action === 'click') {
-    el.scrollIntoView({ block: 'center', behavior: 'smooth' });
     // Synthetic events do not run the browser's default focus action, so do it
     // explicitly. Typing right after a click then appends at the end of a field.
+    // No scrollIntoView: focus must not move the customer's page. The mirror is
+    // at the customer's viewport, so anything clickable is already visible.
     focusForControl(el, true);
     fire(el, ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']);
     flash(el);
