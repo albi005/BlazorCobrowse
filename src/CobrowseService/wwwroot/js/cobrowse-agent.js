@@ -21,8 +21,11 @@ window.cobrowseAgent = (function () {
   let finished = false;
   let assetsLoading = null;
   // Scroll sync is relative, like the PoC: the agent sends deltas and the
-  // customer applies them with scrollBy. The mirror is then driven by the
-  // customer's replayed scroll, so there is only one source of truth.
+  // customer applies them with scrollBy. The mirror scrolls natively so the
+  // agent gets instant feedback; replay echoes are ignored while the agent is
+  // driving so the mirror cannot be pushed back mid-gesture.
+  let agentScrollUntil = 0;
+  let agentScrollTarget = null;
   let scrollFlushTimer = null;
   let pendingScroll = new Map();
   let lastCursorSent = 0;
@@ -99,6 +102,8 @@ window.cobrowseAgent = (function () {
     pending = [];
     queue = [];
     ready = false;
+    agentScrollUntil = 0;
+    agentScrollTarget = null;
     clearTimeout(scrollFlushTimer);
     scrollFlushTimer = null;
     pendingScroll = new Map();
@@ -216,9 +221,28 @@ window.cobrowseAgent = (function () {
   }
 
   function apply(event) {
-    // The mirror is only ever driven by the customer's stream. Agent scrolls
-    // are sent as relative commands and never move the mirror locally, so
-    // replaying a scroll here cannot bounce back as another command.
+    const now = performance.now();
+    const isScroll = event.type === 3 && event.data?.source === 3;
+
+    // While the agent is scrolling, the customer's replay of the same scroll
+    // would push the mirror back to an older position. Ignore those echoes
+    // until the replay reaches the position the agent already scrolled to.
+    if (isScroll && event.data?.id === 1 && agentScrollTarget) {
+      if (now > agentScrollTarget.until) {
+        agentScrollTarget = null;
+      } else {
+        const y = Number(event.data.y);
+        const x = Number(event.data.x);
+        if (Math.abs(y - agentScrollTarget.top) <= 2 &&
+            Math.abs(x - agentScrollTarget.left) <= 2) {
+          agentScrollTarget = null;
+        }
+        return;
+      }
+    }
+
+    if (isScroll && now < agentScrollUntil) return;
+
     if (event.type === 3) {
       replayer.addEvent({ ...event, timestamp: 0 });
     } else {
@@ -320,6 +344,16 @@ window.cobrowseAgent = (function () {
     }, 40);
   }
 
+  function setScrollTarget(scroller, top, left) {
+    const maxTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+    const maxLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+    agentScrollTarget = {
+      top: Math.max(0, Math.min(top, maxTop)),
+      left: Math.max(0, Math.min(left, maxLeft)),
+      until: performance.now() + 1500
+    };
+  }
+
   function sendCursor(doc, force = false) {
     if (!lastCursor) return;
     const now = performance.now();
@@ -377,26 +411,37 @@ window.cobrowseAgent = (function () {
     const onScroll = () => {
       // The pointer's viewport position does not change when the mirror
       // scrolls, but its document position does. Refresh the dot so it stays
-      // under the agent's pointer. Scroll commands are only sent from the
-      // wheel/touch/key handlers, never from this replay-driven event.
+      // under the agent's pointer. Scroll commands are sent from the gesture
+      // handlers below, never from this replay-driven event.
       sendCursor(doc, true);
     };
 
-    // Wheel, touch and scroll keys are sent as relative deltas and the native
-    // scroll is suppressed. The mirror is then driven only by the customer's
-    // replayed scroll, so the two sides cannot fight over the position.
-    const onWheel = (event) => {
-      event.preventDefault();
-      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? doc.documentElement.clientHeight : 1;
-      lastCursor = { x: event.clientX, y: event.clientY };
-      sendCursor(doc);
-      queueScroll('', event.deltaX * unit, event.deltaY * unit);
+    const markAgentScroll = () => {
+      agentScrollUntil = performance.now() + 600;
     };
 
+    // Desktop wheel: let the mirror scroll natively for instant feedback and
+    // send the same delta to the customer. The replay echo is ignored while
+    // the gesture is active, so it cannot pull the mirror back.
+    const onWheel = (event) => {
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? doc.documentElement.clientHeight : 1;
+      const scroller = doc.scrollingElement || doc.documentElement;
+      const dx = event.deltaX * unit;
+      const dy = event.deltaY * unit;
+      lastCursor = { x: event.clientX, y: event.clientY };
+      sendCursor(doc);
+      markAgentScroll();
+      setScrollTarget(scroller, scroller.scrollTop + dy, scroller.scrollLeft + dx);
+      queueScroll('', dx, dy);
+    };
+
+    // Touch: drive the mirror manually so finger deltas and the customer's
+    // scroll stay in lockstep (native momentum would overshoot the delta).
     let touchLast = null;
     const onTouchStart = (event) => {
       const touch = event.touches[0];
       if (touch) touchLast = { x: touch.clientX, y: touch.clientY };
+      markAgentScroll();
     };
     const onTouchMove = (event) => {
       const touch = event.touches[0];
@@ -407,6 +452,11 @@ window.cobrowseAgent = (function () {
       touchLast = { x: touch.clientX, y: touch.clientY };
       lastCursor = { x: touch.clientX, y: touch.clientY };
       sendCursor(doc);
+      markAgentScroll();
+      const scroller = doc.scrollingElement || doc.documentElement;
+      scroller.scrollTop += dy;
+      scroller.scrollLeft += dx;
+      setScrollTarget(scroller, scroller.scrollTop, scroller.scrollLeft);
       queueScroll('', dx, dy);
     };
     const onTouchEnd = () => { touchLast = null; };
@@ -416,12 +466,15 @@ window.cobrowseAgent = (function () {
       let dy = 0;
       if (event.key === 'ArrowDown') dy = 40;
       else if (event.key === 'ArrowUp') dy = -40;
-      else if (event.key === 'PageDown' || event.key === ' ') dy = scroller.clientHeight * 0.9;
-      else if (event.key === 'PageUp') dy = -scroller.clientHeight * 0.9;
+      else if (event.key === 'PageDown' || event.key === ' ') dy = Math.round(scroller.clientHeight * 0.8);
+      else if (event.key === 'PageUp') dy = -Math.round(scroller.clientHeight * 0.8);
       else if (event.key === 'Home') dy = -scroller.scrollHeight;
       else if (event.key === 'End') dy = scroller.scrollHeight;
       if (!dy) return;
       event.preventDefault();
+      markAgentScroll();
+      scroller.scrollTop += dy;
+      setScrollTarget(scroller, scroller.scrollTop, scroller.scrollLeft);
       queueScroll('', 0, dy);
     };
 
@@ -430,7 +483,7 @@ window.cobrowseAgent = (function () {
     doc.addEventListener('submit', onSubmit, true);
     doc.addEventListener('mousemove', onMouseMove, true);
     doc.addEventListener('scroll', onScroll, true);
-    doc.addEventListener('wheel', onWheel, { passive: false, capture: true });
+    doc.addEventListener('wheel', onWheel, { passive: true, capture: true });
     doc.addEventListener('touchstart', onTouchStart, { passive: true, capture: true });
     doc.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
     doc.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
@@ -469,17 +522,17 @@ window.cobrowseAgent = (function () {
   function scrollDown() {
     const doc = replayer?.iframe?.contentDocument;
     const scroller = doc?.scrollingElement || doc?.documentElement;
-    const step = Math.max(200, Math.round((scroller?.clientHeight || 700) * 0.8));
+    if (!scroller) return;
 
-    // Relative scroll, exactly like the PoC. The customer scrolls; rrweb
-    // replays that scroll into the mirror, so the mirror follows without a
-    // second, competing position message.
-    connection?.invoke('Control', {
-      requestId,
-      nodeId: '',
-      action: 'scroll',
-      value: JSON.stringify({ top: step, left: 0 })
-    }).catch((error) => console.warn('[cobrowse] scroll failed', error));
+    const step = Math.max(200, Math.round(scroller.clientHeight * 0.8));
+
+    // Move the mirror immediately so the agent gets instant feedback, then
+    // send the same delta to the customer. Replay echoes are ignored while
+    // the gesture is active.
+    agentScrollUntil = performance.now() + 600;
+    scroller.scrollTop += step;
+    setScrollTarget(scroller, scroller.scrollTop, scroller.scrollLeft);
+    queueScroll('', 0, step);
   }
 
   async function end() {

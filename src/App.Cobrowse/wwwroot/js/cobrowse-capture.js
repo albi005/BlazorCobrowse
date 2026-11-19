@@ -167,8 +167,8 @@ export function applyControl(nodeId, action, value) {
     const top = Number(delta.top) || 0;
     const left = Number(delta.left) || 0;
     const el = nodeId ? resolve(nodeId) : null;
-    if (el) el.scrollBy({ top, left, behavior: 'smooth' });
-    else window.scrollBy({ top, left, behavior: 'smooth' });
+    if (el) el.scrollBy({ top, left, behavior: 'auto' });
+    else window.scrollBy({ top, left, behavior: 'auto' });
     return;
   }
 
