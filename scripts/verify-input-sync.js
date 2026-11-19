@@ -180,6 +180,16 @@ const field = (customer, id) => customer.evaluate((fieldId) => {
     const mirrorValue = await frame.locator('#sample-notes').inputValue();
     check('mirror value follows', mirrorValue, 'a\nb');
 
+    // The native dropdown opens in the mirror; the chosen option is forwarded.
+    await frame.locator('#sample-color').selectOption('danger');
+    await agent.waitForTimeout(800);
+    const color = await customer.evaluate(() => ({
+      value: document.getElementById('sample-color').value,
+      label: document.body.innerText.match(/Selected:\s*\w+/)?.[0] ?? ''
+    }));
+    check('select change reaches the customer', color.value, 'danger');
+    check('select label follows', color.label, 'Selected: danger');
+
     check('no console errors', errors.join(' | '), '');
   } catch (error) {
     failures.push(error.stack ?? String(error));

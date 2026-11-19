@@ -128,7 +128,16 @@ function fire(el, types) {
 
 function setNativeValue(el, value) {
   if (el instanceof HTMLSelectElement) {
-    el.value = value;
+    if (el.multiple && typeof value === 'string' && value.startsWith('[')) {
+      try {
+        const wanted = new Set(JSON.parse(value));
+        for (const option of el.options) option.selected = wanted.has(option.value);
+      } catch {
+        el.value = value;
+      }
+    } else {
+      el.value = value;
+    }
   } else if (el.isContentEditable) {
     el.textContent = value;
   } else {

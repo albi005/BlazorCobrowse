@@ -36,7 +36,9 @@ Working and verified end to end:
   caret at the end, then text, Backspace/Delete, arrows, Home/End, Ctrl+A,
   Enter and paste are applied there. A red ring shows the customer which
   element the agent is working in. Typing mirrors live because rrweb records
-  `input` (sampling `input: 0`), not just `change`.
+  `input` (sampling `input: 0`), not just `change`. A dropdown opens its native
+  popup in the mirror; the chosen option is forwarded to the customer's
+  `<select>`.
 - The sample app has interactive controls (input, textarea, select, checkbox,
   radio, range, list, submit summary) plus scroll-test filler.
 
@@ -127,10 +129,12 @@ The script checks:
   value, which resets that input's caret to the end. The customer's caret is
   authoritative, so mid-field edits still land in the right place; the mirror
   may show the caret at the end.
-- **Text fields only.** `key`/`paste` drive `<input>` and `<textarea>`.
-  `contenteditable`, cross-origin iframes, file pickers and native select
-  dropdowns are still click-only. Ctrl+C / Ctrl+X stay local to the agent's
-  mirror; Ctrl+V forwards the agent's clipboard text.
+- **Text fields and selects.** `key`/`paste` drive `<input>` and `<textarea>`.
+  A `<select>` opens its native popup in the mirror (the click is not
+  intercepted) and its `change` is forwarded as a value, including
+  multi-select. `contenteditable`, cross-origin iframes and file pickers are
+  still click-only. Ctrl+C / Ctrl+X stay local to the agent's mirror; Ctrl+V
+  forwards the agent's clipboard text.
 - **Background logs** from the long-running dev servers, if still present:
   `/tmp/opencode/cobrowse-app.log`, `/tmp/opencode/cobrowse-service.log`.
 

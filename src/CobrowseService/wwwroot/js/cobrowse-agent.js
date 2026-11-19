@@ -496,13 +496,38 @@ window.cobrowseAgent = (function () {
 
     const onResize = () => fitMirror();
     const onClick = (event) => {
+      const target = taggedNode(event.target);
+
+      // A native dropdown has to open in the mirror: the customer's popup is
+      // browser chrome the agent cannot see or click. Let the mirror's select
+      // run, then forward the chosen option from `change` below.
+      if (target?.tagName === 'SELECT') {
+        selectTarget(target);
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
-      const target = taggedNode(event.target);
       if (!target) return;
 
       selectTarget(target);
       sendControl(target.getAttribute('data-cb-id'), 'click', null);
+    };
+
+    // Selects, checkboxes and radios change the customer's value rather than
+    // firing a meaningful click. Checkboxes already toggle through the click
+    // path; a select only reports its new option here.
+    const onChange = (event) => {
+      const target = taggedNode(event.target);
+      if (!target) return;
+
+      if (target.tagName === 'SELECT') {
+        selectTarget(target);
+        const values = target.multiple
+          ? JSON.stringify([...target.selectedOptions].map((option) => option.value))
+          : target.value;
+        sendControl(target.getAttribute('data-cb-id'), 'setValue', values);
+      }
     };
     const onSubmit = (event) => event.preventDefault();
     const onMouseMove = (event) => {
@@ -619,6 +644,7 @@ window.cobrowseAgent = (function () {
     doc.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
     doc.addEventListener('keydown', onKeyDown, true);
     doc.addEventListener('paste', onPaste, true);
+    doc.addEventListener('change', onChange, true);
 
     detachControls = () => {
       window.removeEventListener('resize', onResize);
@@ -632,6 +658,7 @@ window.cobrowseAgent = (function () {
       doc.removeEventListener('touchend', onTouchEnd, true);
       doc.removeEventListener('keydown', onKeyDown, true);
       doc.removeEventListener('paste', onPaste, true);
+      doc.removeEventListener('change', onChange, true);
     };
   }
 
