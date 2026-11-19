@@ -127,9 +127,15 @@ The script checks:
 
 - **Static assets and `--no-build`.** JS/CSS under `wwwroot` is served from the
   source tree in Development, so a running `--no-build` process picks up edits
-  after a hard refresh. C# changes need a rebuild and restart.
-- **Hard-refresh both pages** after changing the JS. The agent console caches
-  `cobrowse-agent.js` aggressively.
+  after a normal reload. C# changes need a rebuild and restart.
+- **Caching is already handled by fingerprints.** Both apps reference assets
+  with `@Assets[...]` and render `<ImportMap />`. The plugin's dynamic
+  `import("./_content/App.Cobrowse/js/cobrowse-client.js")` is remapped to the
+  fingerprinted module, and `cobrowse-client`'s relative import of
+  `cobrowse-capture.js` is remapped by the same import map. Development serves
+  every route `no-cache`; a published build serves the fingerprinted routes
+  `immutable`. Do not tell users to hard-refresh — a normal reload is enough,
+  and a rebuilt app gets a new hash on its own.
 - **The mirror iframe, not the wrapper.** When the customer's page is narrower
   than the agent's panel, the wrapper is much wider than the iframe. Hovering
   or wheeling over the empty wrapper area does nothing. The verify script picks
