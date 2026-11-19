@@ -1,0 +1,12 @@
+{
+  "name": "blazorcobrowse-scripts",
+  "private": true,
+  "description": "End-to-end checks for BlazorCobrowse",
+  "type": "commonjs",
+  "scripts": {
+    "verify-scroll-sync": "node verify-scroll-sync.js"
+  },
+  "dependencies": {
+    "playwright": "^1.65.1"
+  }
+}

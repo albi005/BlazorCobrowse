@@ -57,11 +57,17 @@ The sample configuration uses:
    records the DOM and sends batched events.
 3. An agent accepts the request. The service mints an agent ticket; the agent
    console joins the same hub group and receives the backlog plus live events.
-4. The agent's mirror is rebuilt from rrweb events. Clicks, typing and scrolling
-   in the mirror become control messages, which the customer's browser applies
-   to the real DOM.
+4. The agent's mirror is rebuilt from rrweb events. Clicks and typing in the
+   mirror become control messages, which the customer's browser applies to the
+   real DOM. Agent scrolling is sent as **relative deltas** (`scrollBy`), not
+   absolute positions, so the two sides cannot fight over the offset.
 5. Either side can end the session. The service revokes tickets and notifies
    both sides.
+
+The mirror renders at the customer's native viewport size, without scaling.
+Scroll sync is the most delicate part of the system; see
+[docs/scroll-sync.md](docs/scroll-sync.md) for the protocol, the gesture
+handling and the echo-suppression rules.
 
 ## Configuration
 
@@ -116,6 +122,28 @@ Tenant instances may run different plugin versions. The HTTP contract is
 versioned by path (`/api/v1`), the hub contract by the `protocol` field on join,
 and the plugin reports its version in `X-Cobrowse-Client`. See
 [docs/compatibility.md](docs/compatibility.md).
+
+## Verifying scroll sync
+
+`scripts/verify-scroll-sync.js` drives a real session in headless Chromium and
+checks both scroll directions, the "Scroll down" button, wobble, cursor
+anchoring and mirror sizing across three viewport pairings.
+
+```bash
+cd scripts
+npm install          # once; playwright is not committed
+node verify-scroll-sync.js
+```
+
+It needs both servers running. Set `APP_URL`, `AGENT_URL` or `CHROMIUM_PATH` to
+override the defaults, or `HEADLESS=false` to watch. The script exits non-zero
+if any check fails.
+
+## Handoff
+
+[docs/handoff.md](docs/handoff.md) records the current state, how to run and
+verify everything, the known limitations and the next steps. Start there when
+picking the work up.
 
 ## Future work
 
