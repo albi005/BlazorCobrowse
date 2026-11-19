@@ -1,6 +1,6 @@
 # Handoff
 
-State of the cobrowsing work as of the scroll-sync fixes. Read this first, then
+State of the cobrowsing work as of the input-sync changes. Read this first, then
 [docs/scroll-sync.md](scroll-sync.md) for the scroll design.
 
 ## What this is
@@ -29,7 +29,14 @@ Working and verified end to end:
 - The mirror renders at the customer's native viewport size (no scaling).
 - Cursor dot is anchored to document coordinates and stays under the agent's
   pointer while the document scrolls.
-- Clicks and `setValue` from the mirror reach the customer's DOM.
+- Clicks and `setValue` (the "Send text" toolbar) from the mirror reach the
+  customer's DOM.
+- Typing in a mirror field is forwarded as keystrokes, the same model as the
+  screen-sharing PoC: a click focuses the customer's real element and puts the
+  caret at the end, then text, Backspace/Delete, arrows, Home/End, Ctrl+A,
+  Enter and paste are applied there. A red ring shows the customer which
+  element the agent is working in. Typing mirrors live because rrweb records
+  `input` (sampling `input: 0`), not just `change`.
 - The sample app has interactive controls (input, textarea, select, checkbox,
   radio, range, list, submit summary) plus scroll-test filler.
 
@@ -68,7 +75,14 @@ Development identities:
 cd scripts
 npm install          # once; playwright is not committed
 node verify-scroll-sync.js
+node verify-input-sync.js
 ```
+
+`verify-input-sync.js` checks agent -> customer typing: click focus, live
+binding, arrows and mid-field insertion, Ctrl+A, Backspace, Enter (input vs
+textarea) and the mirrored value. On NixOS the bundled Playwright Chromium may
+lack system libraries; run it under `nix shell nixpkgs#chromium` and pass
+`CHROMIUM_PATH=$(command -v chromium)`.
 
 Environment overrides: `APP_URL`, `AGENT_URL`, `SERVICE_URL`, `TENANT_ID`,
 `TENANT_KEY`, `CHROMIUM_PATH`, `HEADLESS=false` to watch. The script exits
@@ -109,6 +123,14 @@ The script checks:
   than the agent's panel, the wrapper is much wider than the iframe. Hovering
   or wheeling over the empty wrapper area does nothing. The verify script picks
   a point inside the iframe.
+- **Mirror caret is cosmetic.** rrweb's `applyInput` sets the mirror input's
+  value, which resets that input's caret to the end. The customer's caret is
+  authoritative, so mid-field edits still land in the right place; the mirror
+  may show the caret at the end.
+- **Text fields only.** `key`/`paste` drive `<input>` and `<textarea>`.
+  `contenteditable`, cross-origin iframes, file pickers and native select
+  dropdowns are still click-only. Ctrl+C / Ctrl+X stay local to the agent's
+  mirror; Ctrl+V forwards the agent's clipboard text.
 - **Background logs** from the long-running dev servers, if still present:
   `/tmp/opencode/cobrowse-app.log`, `/tmp/opencode/cobrowse-service.log`.
 
@@ -149,6 +171,7 @@ Ordered by likely value:
 | `docs/scroll-sync.md` | Scroll design and invariants |
 | `docs/compatibility.md` | Versioning rules for independently deployed tenants |
 | `scripts/verify-scroll-sync.js` | End-to-end scroll/cursor check |
+| `scripts/verify-input-sync.js` | End-to-end agent -> customer input check |
 
 ## PoC reference
 

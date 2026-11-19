@@ -382,6 +382,107 @@ window.cobrowseAgent = (function () {
     }).catch(() => { /* best effort */ });
   }
 
+  // ---------------------------------------------------------- input forwarding
+  //
+  // The mirror is only a picture of the customer's DOM, so it cannot type for
+  // itself. Keystrokes in a mirror field are forwarded to the customer, where
+  // the field really lives. This follows the screen-sharing PoC: focus and
+  // caret belong to the customer's page, and the value comes back over rrweb.
+
+  function taggedNode(node) {
+    return node && node.nodeType === 1 ? node.closest('[data-cb-id]') : null;
+  }
+
+  function isEditable(node) {
+    return !!node && node.nodeType === 1 &&
+      (node.tagName === 'INPUT' || node.tagName === 'TEXTAREA' || node.isContentEditable);
+  }
+
+  function sendControl(nodeId, action, value) {
+    if (!nodeId) return;
+    connection?.invoke('Control', {
+      requestId,
+      nodeId,
+      action,
+      value
+    }).catch((error) => console.warn(`[cobrowse] ${action} failed`, error));
+  }
+
+  function selectTarget(target) {
+    const nodeId = target.getAttribute('data-cb-id');
+    selectedNode = nodeId;
+    const tag = target.tagName.toLowerCase();
+    const label = (target.textContent || '').trim().slice(0, 40);
+    setToolState(`selected <${tag}> · ${nodeId}${label ? ' · "' + label + '"' : ''}`, 'ok');
+  }
+
+  function forwardKey(event, target) {
+    const key = event.key;
+    if (!key || event.isComposing) return false;
+
+    // The agent's own browser keeps these; everything else belongs to the
+    // customer's page.
+    if (['F5', 'F11', 'F12', 'Tab', 'Escape', 'CapsLock', 'Process', 'Dead'].includes(key)) return false;
+
+    const nodeId = target.getAttribute('data-cb-id');
+    const ctrl = event.ctrlKey || event.metaKey;
+
+    if (ctrl) {
+      const k = key.toLowerCase();
+      if (k === 'v') {
+        // Paste runs in the customer's document, where the caret is. Send the
+        // agent's clipboard text along when the browser lets us read it.
+        event.preventDefault();
+        pasteFromClipboard(nodeId);
+        return true;
+      }
+      if (k === 'a') {
+        event.preventDefault();
+        sendControl(nodeId, 'key', JSON.stringify({
+          key: 'a', code: event.code, ctrl: true, shift: event.shiftKey, alt: event.altKey
+        }));
+        return true;
+      }
+      // Ctrl+C / Ctrl+X copy the mirror's own text; leaving them native lets
+      // the agent copy what it sees without a round trip.
+      return false;
+    }
+
+    if (['Shift', 'Control', 'Alt', 'Meta'].includes(key)) return false;
+
+    const printable = key.length === 1;
+    // The customer's page is the only editor: stop the mirror from applying
+    // the key locally as well. Its value arrives back through rrweb.
+    event.preventDefault();
+
+    sendControl(nodeId, 'key', JSON.stringify({
+      key,
+      code: event.code,
+      text: printable ? key : undefined,
+      ctrl: false,
+      shift: event.shiftKey,
+      alt: event.altKey,
+      meta: event.metaKey
+    }));
+    return true;
+  }
+
+  function pasteFromClipboard(nodeId) {
+    if (!navigator.clipboard?.readText) {
+      setToolState('clipboard is not available here', 'warn');
+      return;
+    }
+
+    navigator.clipboard.readText().then((text) => {
+      if (!text) {
+        setToolState('clipboard is empty', 'warn');
+        return;
+      }
+      sendControl(nodeId, 'paste', text);
+      setToolState(`pasted ${text.length} chars`, 'ok');
+    }).catch(() => setToolState('clipboard permission denied', 'warn'));
+  }
+
   function attachControls() {
     fitMirror();
     const doc = replayer?.iframe?.contentDocument;
@@ -397,21 +498,11 @@ window.cobrowseAgent = (function () {
     const onClick = (event) => {
       event.preventDefault();
       event.stopPropagation();
-      const node = event.target;
-      const target = node && node.nodeType === 1 ? node.closest('[data-cb-id]') : null;
+      const target = taggedNode(event.target);
       if (!target) return;
 
-      selectedNode = target.getAttribute('data-cb-id');
-      const tag = target.tagName.toLowerCase();
-      const label = (target.textContent || '').trim().slice(0, 40);
-      setToolState(`selected <${tag}> · ${selectedNode}${label ? ' · "' + label + '"' : ''}`, 'ok');
-
-      connection?.invoke('Control', {
-        requestId,
-        nodeId: selectedNode,
-        action: 'click',
-        value: null
-      }).catch((error) => console.warn('[cobrowse] control failed', error));
+      selectTarget(target);
+      sendControl(target.getAttribute('data-cb-id'), 'click', null);
     };
     const onSubmit = (event) => event.preventDefault();
     const onMouseMove = (event) => {
@@ -478,6 +569,18 @@ window.cobrowseAgent = (function () {
     const onTouchEnd = () => { touchLast = null; };
 
     const onKeyDown = (event) => {
+      // Keys typed into a mirror field go to the customer's field; only keys
+      // pressed outside an editable element drive the scroll shortcuts.
+      const field = isEditable(event.target) ? taggedNode(event.target) : null;
+      if (field) {
+        // Not a relayed key (Shift, Tab, F-key) is still not a scroll key: the
+        // field owns the keyboard while it has focus.
+        if (forwardKey(event, field) && selectedNode !== field.getAttribute('data-cb-id')) {
+          selectTarget(field);
+        }
+        return;
+      }
+
       const scroller = doc.scrollingElement || doc.documentElement;
       let dy = 0;
       if (event.key === 'ArrowDown') dy = 40;
@@ -494,6 +597,17 @@ window.cobrowseAgent = (function () {
       queueScroll('', 0, dy);
     };
 
+    // Menu paste (or Ctrl+V the browser handles itself) still has clipboard
+    // data; read it before the mirror applies it locally.
+    const onPaste = (event) => {
+      const field = taggedNode(event.target);
+      if (!field || !isEditable(event.target)) return;
+      const text = event.clipboardData?.getData('text/plain') ?? '';
+      if (!text) return;
+      event.preventDefault();
+      sendControl(field.getAttribute('data-cb-id'), 'paste', text);
+    };
+
     window.addEventListener('resize', onResize);
     doc.addEventListener('click', onClick, true);
     doc.addEventListener('submit', onSubmit, true);
@@ -504,6 +618,7 @@ window.cobrowseAgent = (function () {
     doc.addEventListener('touchmove', onTouchMove, { passive: false, capture: true });
     doc.addEventListener('touchend', onTouchEnd, { passive: true, capture: true });
     doc.addEventListener('keydown', onKeyDown, true);
+    doc.addEventListener('paste', onPaste, true);
 
     detachControls = () => {
       window.removeEventListener('resize', onResize);
@@ -516,6 +631,7 @@ window.cobrowseAgent = (function () {
       doc.removeEventListener('touchmove', onTouchMove, true);
       doc.removeEventListener('touchend', onTouchEnd, true);
       doc.removeEventListener('keydown', onKeyDown, true);
+      doc.removeEventListener('paste', onPaste, true);
     };
   }
 

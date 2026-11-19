@@ -19,7 +19,7 @@ public sealed class CobrowseHub(
     private const int BacklogChunkSize = 300;
 
     private static readonly HashSet<string> AllowedActions =
-        new(StringComparer.Ordinal) { "click", "setValue", "scroll", "scrollTo", "highlight" };
+        new(StringComparer.Ordinal) { "click", "setValue", "scroll", "scrollTo", "highlight", "key", "paste" };
 
     private CobrowseOptions Options => options.Value;
 

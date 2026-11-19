@@ -80,7 +80,10 @@ export async function createCapture({ maskPasswords, onEvent }) {
     recordCrossOriginIframes: false,
     collectFonts: false,
     inlineStylesheet: true,
-    sampling: { mousemove: 50, scroll: 100, input: 'last' }
+    // `input: 'last'` makes rrweb listen to `change` only, so a keystroke typed
+    // by the agent would not show up in the mirror until the field blurred.
+    // Typing is low volume; mirror every input event instead.
+    sampling: { mousemove: 50, scroll: 100, input: 0 }
   });
 
   return {
@@ -137,10 +140,321 @@ function setNativeValue(el, value) {
     else el.value = value;
   }
 
+  if (virtualCaret?.el === el) setVirtualCaret(el, el.value.length);
+  selectAllFor = null;
+
   // Blazor's @bind listens to `change`; @bind:event="oninput" listens to `input`.
   el.dispatchEvent(new Event('input', { bubbles: true }));
   el.dispatchEvent(new Event('change', { bubbles: true }));
 }
+
+// ------------------------------------------------------------- input replay
+//
+// The screen-sharing PoC sends real keystrokes instead of whole values; this is
+// the same idea with the customer's DOM as the caret owner. The mirror cannot
+// share a selection with the customer, so the agent forwards what it pressed
+// and this page applies it to the focused field. rrweb then mirrors the new
+// value back.
+
+const isTextField = (el) => el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement;
+
+/** selectionStart exists on text-like inputs; it is null for e.g. type="email". */
+const supportsSelection = (el) => typeof el.selectionStart === 'number';
+
+/**
+ * Fields with no selection API (email, number, date, …) get a caret index we
+ * track ourselves, so arrows and insertion behave like everywhere else.
+ */
+let virtualCaret = null;
+
+/** Ctrl+A on a field without selection support has to be emulated. */
+let selectAllFor = null;
+
+function caretIndex(el) {
+  if (supportsSelection(el)) return el.selectionStart ?? 0;
+  if (virtualCaret && virtualCaret.el === el) return virtualCaret.index;
+  return el.value.length;
+}
+
+function setVirtualCaret(el, index) {
+  virtualCaret = { el, index };
+}
+
+function notifyInput(el) {
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function insertText(el, text) {
+  if (!text) return;
+
+  if (supportsSelection(el)) {
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? start;
+    try {
+      el.setRangeText(text, start, end, 'end');
+    } catch {
+      el.value = el.value.slice(0, start) + text + el.value.slice(end);
+      setVirtualCaret(el, start + text.length);
+    }
+  } else {
+    const value = el.value;
+    const all = selectAllFor === el;
+    const from = all ? 0 : caretIndex(el);
+    const to = all ? value.length : from;
+    el.value = value.slice(0, from) + text + value.slice(to);
+    setVirtualCaret(el, from + text.length);
+  }
+
+  selectAllFor = null;
+  notifyInput(el);
+}
+
+function backspace(el) {
+  if (supportsSelection(el)) {
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? start;
+    if (start !== end) el.setRangeText('', start, end, 'end');
+    else if (start > 0) el.setRangeText('', start - 1, start, 'end');
+  } else if (selectAllFor === el) {
+    el.value = '';
+    setVirtualCaret(el, 0);
+    selectAllFor = null;
+  } else {
+    const at = caretIndex(el);
+    if (at > 0) {
+      el.value = el.value.slice(0, at - 1) + el.value.slice(at);
+      setVirtualCaret(el, at - 1);
+    }
+  }
+
+  notifyInput(el);
+}
+
+function deleteForward(el) {
+  if (supportsSelection(el)) {
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? start;
+    if (start !== end) el.setRangeText('', start, end, 'end');
+    else if (end < el.value.length) el.setRangeText('', start, start + 1, 'end');
+  } else if (selectAllFor === el) {
+    el.value = '';
+    setVirtualCaret(el, 0);
+    selectAllFor = null;
+  } else {
+    const at = caretIndex(el);
+    if (at < el.value.length) {
+      el.value = el.value.slice(0, at) + el.value.slice(at + 1);
+      setVirtualCaret(el, at);
+    }
+  }
+
+  notifyInput(el);
+}
+
+/** A click or a first typable key puts the caret at the end, so type appends. */
+function focusForControl(el, placeCaret = false) {
+  const hadFocus = document.activeElement === el;
+
+  if (!hadFocus && typeof el.focus === 'function') {
+    try {
+      el.focus({ preventScroll: true });
+    } catch {
+      el.focus();
+    }
+  }
+
+  // A click puts the caret at the end; a key only does that when it had to
+  // focus the field, otherwise arrow keys and Ctrl+A would be undone first.
+  if ((!hadFocus || placeCaret) && isTextField(el)) {
+    if (supportsSelection(el)) {
+      const length = el.value.length;
+      try {
+        el.setSelectionRange(length, length);
+      } catch {
+        // Some input types reject a selection range.
+      }
+    } else {
+      setVirtualCaret(el, el.value.length);
+    }
+  }
+
+  if (!isTextField(el)) {
+    virtualCaret = null;
+    selectAllFor = null;
+  }
+
+  showFocusRing(el);
+}
+
+function parseKey(value) {
+  if (value == null) return null;
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(String(value));
+  } catch {
+    return null;
+  }
+}
+
+function applyKey(el, ev) {
+  if (!ev) return;
+  focusForControl(el);
+
+  const key = String(ev.key ?? '');
+  if (!key) return;
+
+  if (!isTextField(el)) {
+    // Buttons and other non-text elements can still have key handlers.
+    el.dispatchEvent(new KeyboardEvent('keydown', {
+      key,
+      code: String(ev.code ?? ''),
+      bubbles: true
+    }));
+    return;
+  }
+
+  if (ev.ctrl || ev.meta) {
+    if (key === 'a' || key === 'A') {
+      if (supportsSelection(el)) {
+        try {
+          el.select();
+        } catch {
+          // Some input types reject select().
+        }
+      } else {
+        selectAllFor = el;
+      }
+    }
+    // Every other modifier combo is the agent's browser shortcut, not text.
+    return;
+  }
+
+  const length = el.value.length;
+  const shift = !!ev.shift;
+
+  if (key === 'ArrowLeft' || key === 'ArrowRight') {
+    const left = key === 'ArrowLeft';
+
+    if (supportsSelection(el)) {
+      const start = el.selectionStart ?? 0;
+      const end = el.selectionEnd ?? start;
+
+      if (!shift) {
+        const pos = start !== end
+          ? (left ? start : end)
+          : left ? Math.max(0, start - 1) : Math.min(length, end + 1);
+        el.setSelectionRange(pos, pos);
+      } else {
+        const active = left ? Math.max(0, end - 1) : Math.min(length, end + 1);
+        el.setSelectionRange(Math.min(start, active), Math.max(start, active), left ? 'backward' : 'forward');
+      }
+    } else {
+      const at = caretIndex(el);
+      const next = left ? Math.max(0, at - 1) : Math.min(length, at + 1);
+      selectAllFor = null;
+      setVirtualCaret(el, next);
+    }
+    return;
+  }
+
+  if (key === 'Home' || key === 'End') {
+    const toEnd = key === 'End';
+    if (supportsSelection(el)) {
+      const start = el.selectionStart ?? 0;
+      const end = el.selectionEnd ?? start;
+      if (shift) {
+        const active = toEnd ? length : 0;
+        el.setSelectionRange(Math.min(start, active), Math.max(start, active), toEnd ? 'forward' : 'backward');
+      } else {
+        const pos = toEnd ? length : 0;
+        el.setSelectionRange(pos, pos);
+      }
+    } else {
+      setVirtualCaret(el, toEnd ? length : 0);
+    }
+    return;
+  }
+
+  if (key === 'Backspace') {
+    backspace(el);
+    return;
+  }
+
+  if (key === 'Delete') {
+    deleteForward(el);
+    return;
+  }
+
+  if (key === 'Enter') {
+    if (el.tagName === 'TEXTAREA') {
+      insertText(el, '\n');
+    } else {
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      el.blur();
+      hideFocusRing();
+    }
+    return;
+  }
+
+  if (typeof ev.text === 'string' && ev.text.length) {
+    // A single-line field cannot hold line breaks.
+    insertText(el, el.tagName === 'INPUT' ? ev.text.replace(/[\r\n]+/g, ' ') : ev.text);
+  }
+}
+
+function applyPaste(el, text) {
+  focusForControl(el);
+  if (!isTextField(el)) return;
+  const value = typeof text === 'string' ? text : '';
+  insertText(el, el.tagName === 'INPUT' ? value.replace(/[\r\n]+/g, ' ') : value);
+}
+
+// --------------------------------------------------------------- focus ring
+//
+// The customer should see which element the agent is working in. Like the
+// remote cursor, the ring is excluded from the rrweb stream.
+
+let focusRing = null;
+let ringTarget = null;
+
+function showFocusRing(el) {
+  if (!el || el === document.body || el === document.documentElement) return;
+
+  if (!focusRing) {
+    focusRing = document.createElement('div');
+    focusRing.className = 'cbx-focus-ring ' + BLOCK_CLASS;
+    document.body.appendChild(focusRing);
+  }
+
+  ringTarget = el;
+  placeFocusRing();
+}
+
+function placeFocusRing() {
+  if (!focusRing || !ringTarget) return;
+
+  if (!document.contains(ringTarget)) {
+    hideFocusRing();
+    return;
+  }
+
+  const rect = ringTarget.getBoundingClientRect();
+  focusRing.style.left = `${rect.left - 4}px`;
+  focusRing.style.top = `${rect.top - 4}px`;
+  focusRing.style.width = `${rect.width + 8}px`;
+  focusRing.style.height = `${rect.height + 8}px`;
+  focusRing.style.opacity = '1';
+}
+
+function hideFocusRing() {
+  focusRing?.remove();
+  focusRing = null;
+  ringTarget = null;
+}
+
+window.addEventListener('scroll', placeFocusRing, true);
+window.addEventListener('resize', placeFocusRing);
 
 function flash(el) {
   const rect = el.getBoundingClientRect();
@@ -198,9 +512,17 @@ export function applyControl(nodeId, action, value) {
 
   if (action === 'click') {
     el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    // Synthetic events do not run the browser's default focus action, so do it
+    // explicitly. Typing right after a click then appends at the end of a field.
+    focusForControl(el, true);
     fire(el, ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']);
     flash(el);
     pulseCursor();
+  } else if (action === 'key') {
+    applyKey(el, parseKey(value));
+  } else if (action === 'paste') {
+    applyPaste(el, value ?? '');
+    flash(el);
   } else if (action === 'setValue') {
     setNativeValue(el, value ?? '');
     flash(el);

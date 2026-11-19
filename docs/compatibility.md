@@ -27,6 +27,9 @@ sides follow these rules.
   announced; an empty list means the protocol-1 baseline.
 - Enumerations travel as strings. Receivers must tolerate values they do not
   know and treat an unknown terminal state as terminal, not as an error.
+- Control actions are additive strings too. An older plugin ignores a `key` or
+  `paste` action it does not implement, so a newer agent stays compatible with
+  a tenant that has not upgraded its plugin yet.
 - Hub method names and message names are part of the contract. Add new methods
   and messages; do not rename existing ones.
 

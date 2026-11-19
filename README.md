@@ -57,10 +57,11 @@ The sample configuration uses:
    records the DOM and sends batched events.
 3. An agent accepts the request. The service mints an agent ticket; the agent
    console joins the same hub group and receives the backlog plus live events.
-4. The agent's mirror is rebuilt from rrweb events. Clicks and typing in the
-   mirror become control messages, which the customer's browser applies to the
-   real DOM. Agent scrolling is sent as **relative deltas** (`scrollBy`), not
-   absolute positions, so the two sides cannot fight over the offset.
+4. The agent's mirror is rebuilt from rrweb events. Clicks focus the real
+   element; keystrokes, caret keys (arrows/Home/End/Backspace/Delete), Ctrl+A
+   and pastes are forwarded to the customer's field and applied there. Agent
+   scrolling is sent as **relative deltas** (`scrollBy`), not absolute
+   positions, so the two sides cannot fight over the offset.
 5. Either side can end the session. The service revokes tickets and notifies
    both sides.
 
