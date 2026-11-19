@@ -1,1 +1,2 @@
-Commit after each turn.
+- Commit after each turn.
+- Use nix-shell for any tools not installed (if available)

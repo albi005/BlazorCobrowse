@@ -159,7 +159,10 @@ function flash(el) {
 export function applyControl(nodeId, action, value) {
   if (action === 'scroll') {
     // Protocol 1 relative scroll. Kept for older agents.
-    window.scrollBy({ top: Number(value) || 0, left: 0, behavior: 'auto' });
+    const el = nodeId ? resolve(nodeId) : null;
+    const amount = Number(value) || 0;
+    if (el) el.scrollBy({ top: amount, left: 0, behavior: 'auto' });
+    else window.scrollBy({ top: amount, left: 0, behavior: 'auto' });
     return;
   }
 
@@ -167,9 +170,20 @@ export function applyControl(nodeId, action, value) {
     // Absolute scroll position. Parsed defensively because the value travels
     // as a string on the wire so protocol 1 peers can keep ignoring it.
     const target = parseScrollTarget(value);
-    if (target) {
-      window.scrollTo({ top: target.top, left: target.left, behavior: 'auto' });
-    }
+    if (!target) return;
+
+    const el = nodeId ? resolve(nodeId) : null;
+    const scroller = el || document.scrollingElement || document.documentElement;
+    const maxTop = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+    const maxLeft = Math.max(0, scroller.scrollWidth - scroller.clientWidth);
+
+    // Map by proportion when the two viewports have different document
+    // heights. A phone and a desktop mirror rarely agree on pixel offsets.
+    const top = target.maxTop > 0 ? Math.round((target.top / target.maxTop) * maxTop) : target.top;
+    const left = target.maxLeft > 0 ? Math.round((target.left / target.maxLeft) * maxLeft) : target.left;
+
+    if (el) el.scrollTo({ top, left, behavior: 'auto' });
+    else window.scrollTo({ top, left, behavior: 'auto' });
     return;
   }
 
@@ -195,9 +209,14 @@ function parseScrollTarget(value) {
   if (typeof value === 'object') {
     const top = Number(value.top);
     const left = Number(value.left);
-    return Number.isFinite(top) || Number.isFinite(left)
-      ? { top: Number.isFinite(top) ? top : 0, left: Number.isFinite(left) ? left : 0 }
-      : null;
+    const maxTop = Number(value.maxTop);
+    const maxLeft = Number(value.maxLeft);
+    return {
+      top: Number.isFinite(top) ? top : 0,
+      left: Number.isFinite(left) ? left : 0,
+      maxTop: Number.isFinite(maxTop) ? maxTop : 0,
+      maxLeft: Number.isFinite(maxLeft) ? maxLeft : 0
+    };
   }
 
   const text = String(value).trim();
@@ -212,7 +231,7 @@ function parseScrollTarget(value) {
   }
 
   const top = Number(text);
-  return Number.isFinite(top) ? { top, left: 0 } : null;
+  return Number.isFinite(top) ? { top, left: 0, maxTop: 0, maxLeft: 0 } : null;
 }
 
 let cursorEl = null;
