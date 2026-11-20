@@ -118,21 +118,21 @@
 }
 
 .cb-pill.ok {
-  background: var(--cb-ok-surface);
-  color: var(--cb-ok);
-  border-color: #86efac;
+  background: var(--md-sys-color-success-container);
+  color: var(--md-sys-color-on-success-container);
+  border-color: color-mix(in srgb, var(--md-sys-color-success) 35%, transparent);
 }
 
 .cb-pill.warn {
-  background: var(--cb-warn-surface);
-  color: var(--cb-warn);
-  border-color: #fcd34d;
+  background: var(--md-sys-color-warning-container);
+  color: var(--md-sys-color-on-warning-container);
+  border-color: color-mix(in srgb, var(--md-sys-color-warning) 35%, transparent);
 }
 
 .cb-pill.err {
-  background: var(--cb-err-surface);
-  color: var(--cb-err);
-  border-color: #fca5a5;
+  background: var(--md-sys-color-error-container);
+  color: var(--md-sys-color-on-error-container);
+  border-color: color-mix(in srgb, var(--md-sys-color-error) 35%, transparent);
 }
 
 .cb-tools {
@@ -240,10 +240,10 @@ md-outlined-button.cb-end {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--cb-ok);
+  background: var(--md-sys-color-success);
 }
 
-.session-dot.pending { background: var(--cb-warn); }
+.session-dot.pending { background: var(--md-sys-color-warning); }
 
 .session-body {
   flex: 1;
