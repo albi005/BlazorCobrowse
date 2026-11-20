@@ -2,7 +2,6 @@
 
 .agent-page {
   height: 100vh;
-  padding: .5rem;
   display: flex;
   flex-direction: column;
 }
@@ -16,8 +15,6 @@
   align-items: stretch;
   overflow: hidden;
   background: var(--md-sys-color-surface);
-  border: 1px solid var(--md-sys-color-outline-variant);
-  border-radius: 16px;
 }
 
 .stage {
