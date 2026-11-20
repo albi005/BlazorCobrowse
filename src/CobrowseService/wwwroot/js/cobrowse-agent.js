@@ -384,15 +384,13 @@ window.cobrowseAgent = (function () {
     const shell = document.querySelector('.cb-mirror-shell');
     const wrapper = replayer?.wrapper;
     if (!shell || !wrapper) return;
-    const height = wrapper.offsetHeight || 900;
 
     // Render the mirror at the customer's native viewport size, like the PoC.
     // Scaling the mirror made wheel deltas and document deltas disagree, which
-    // is what made agent-driven scrolling wobble. The shell scrolls/pans when
-    // the customer's viewport is wider than the agent's panel.
+    // is what made agent-driven scrolling wobble. The shell fills the stage
+    // (CSS) and scrolls/pans when the customer page is larger than the panel.
     wrapper.style.transformOrigin = 'top left';
     wrapper.style.transform = 'none';
-    shell.style.height = `${Math.min(window.innerHeight * 0.7, height)}px`;
   }
 
   function queueScroll(nodeId, dx, dy) {
