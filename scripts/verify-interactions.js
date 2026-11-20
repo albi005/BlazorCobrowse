@@ -156,6 +156,7 @@ const mirrorState = (frame) => frame.evaluate(() => ({
     await agent.waitForTimeout(1600);
     const tickAfter = (await relativeTime.innerText()).trim();
     check('relative time updates live', tickBefore !== tickAfter, true);
+    check('relative time has a single age', /^(\d+h )?\d+m \d+s$/.test(tickAfter), true);
 
     await customer.mouse.move(520, 320);
     // rrweb samples mousemove every 50ms and drops the trailing sample.

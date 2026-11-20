@@ -50,7 +50,7 @@
                                 <div class="session-page" title="@PageLabel(activeRequest)">@PageLabel(activeRequest)</div>
                                 @if (activeRequest.AcceptedAt is { } accepted)
                                 {
-                                    <div class="session-meta">accepted <cb-relative-time since="@Iso(accepted)">@FormatAge(accepted)</cb-relative-time> ago</div>
+                                    <div class="session-meta">accepted <cb-relative-time since="@Iso(accepted)"></cb-relative-time> ago</div>
                                 }
 
                                 <div class="status-row compact">
@@ -94,7 +94,7 @@
                                     {
                                         <div class="session-note">@request.Note</div>
                                     }
-                                    <div class="session-meta">waiting <cb-relative-time since="@Iso(request.CreatedAt)">@FormatAge(request.CreatedAt)</cb-relative-time></div>
+                                    <div class="session-meta">waiting <cb-relative-time since="@Iso(request.CreatedAt)"></cb-relative-time></div>
                                 </div>
                                 <div class="session-actions">
                                     <md-filled-tonal-button class="cb-accept"
@@ -129,7 +129,7 @@
                                     <div class="session-page" title="@PageLabel(request)">@PageLabel(request)</div>
                                     @if (request.AcceptedAt is { } accepted)
                                     {
-                                        <div class="session-meta">accepted <cb-relative-time since="@Iso(accepted)">@FormatAge(accepted)</cb-relative-time> ago</div>
+                                        <div class="session-meta">accepted <cb-relative-time since="@Iso(accepted)"></cb-relative-time> ago</div>
                                     }
                                 </div>
                                 <div class="session-actions">
@@ -351,17 +351,6 @@
         _notice = message ?? "The support session ended.";
         Refresh();
         return Task.CompletedTask;
-    }
-
-    private static string FormatAge(DateTimeOffset timestamp)
-    {
-        var age = DateTimeOffset.UtcNow - timestamp;
-        if (age < TimeSpan.Zero)
-            age = TimeSpan.Zero;
-
-        return age.TotalHours >= 1
-            ? $"{(int)age.TotalHours}h {age.Minutes}m"
-            : $"{age.Minutes}m {age.Seconds}s";
     }
 
     public async ValueTask DisposeAsync()

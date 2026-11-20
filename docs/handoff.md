@@ -57,8 +57,8 @@ Working and verified end to end:
   the left and the mirror on the right; the status pills and End session live
   in the active session card, and the tools sit under the mirror.
 - Relative times in the session list (``accepted … ago``, ``waiting …``) are a
-  Lit element (`cb-relative-time`) that ticks every second, with a server-side
-  fallback for the first render.
+  Lit element (`cb-relative-time`) that ticks every second; the element is
+  rendered empty so Lit owns its content.
 - The sample app has interactive controls (input, textarea, select, checkbox,
   radio, range, list, submit summary), a scrollable inner container
   (`#sample-scroller`) and scroll-test filler.
