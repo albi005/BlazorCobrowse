@@ -11,6 +11,7 @@
 import {
   BLOCK_CLASS,
   applyControl,
+  clearControlFocus,
   createCapture,
   hideAgentCursor,
   showAgentCursor,
@@ -126,6 +127,13 @@ class CobrowseSession {
       // event rather than a second `joined` message.
       if (this.agentOnline) this.state = 'active';
       else if (this.state === 'active') this.state = 'pending';
+
+      // No agent, no controlled focus ring.
+      if (!this.agentOnline) {
+        clearControlFocus();
+        hideAgentCursor();
+      }
+
       this.renderBanner();
       this.push();
     });
@@ -223,6 +231,7 @@ class CobrowseSession {
   }
 
   pauseCapture() {
+    clearControlFocus();
     this.buffer = [];
     clearTimeout(this.flushTimer);
     this.flushTimer = null;

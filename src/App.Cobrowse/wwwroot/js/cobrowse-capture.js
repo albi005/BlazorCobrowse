@@ -277,6 +277,9 @@ function deleteForward(el) {
   notifyInput(el);
 }
 
+/** The element the agent last focused, so a disconnect can release it. */
+let controlledFocus = null;
+
 /** A click or a first typable key puts the caret at the end, so type appends. */
 function focusForControl(el, placeCaret = false) {
   const hadFocus = document.activeElement === el;
@@ -309,6 +312,7 @@ function focusForControl(el, placeCaret = false) {
     selectAllFor = null;
   }
 
+  controlledFocus = el;
   showFocusRing(el);
 }
 
@@ -489,6 +493,25 @@ function hideFocusRing() {
   focusRing?.remove();
   focusRing = null;
   ringTarget = null;
+}
+
+/**
+ * Release everything the agent put on the customer's page when the session
+ * ends, the agent leaves or viewing is paused: the focus ring and the focus
+ * itself, so no stale focus outline is left behind.
+ */
+export function clearControlFocus() {
+  const focused = controlledFocus;
+  controlledFocus = null;
+  hideFocusRing();
+
+  if (focused && document.activeElement === focused) {
+    try {
+      focused.blur();
+    } catch {
+      // Already detached.
+    }
+  }
 }
 
 window.addEventListener('scroll', placeFocusRing, true);

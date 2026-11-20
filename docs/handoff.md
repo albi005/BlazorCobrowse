@@ -43,7 +43,9 @@ Working and verified end to end:
   screen-sharing PoC: a click focuses the customer's real element and puts the
   caret at the end, then text, Backspace/Delete, arrows, Home/End, Ctrl+A,
   Enter and paste are applied there. A red ring shows the customer which
-  element the agent is working in. Typing mirrors live because rrweb records
+  element the agent is working in; the ring and the agent-applied focus are
+  released when the session ends, the agent disconnects or viewing pauses.
+  Typing mirrors live because rrweb records
   `input` (sampling `input: 0`), not just `change`. A dropdown opens its native
   popup in the mirror; the chosen option is forwarded to the customer's
   `<select>`. A range stays native too (the thumb follows the agent's pointer)

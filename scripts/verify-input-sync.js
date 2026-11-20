@@ -206,6 +206,16 @@ const field = (customer, id) => customer.evaluate((fieldId) => {
     const scrollAfterClick = await customer.evaluate(() => Math.round(scrollY));
     check('click/focus does not auto-scroll the customer', scrollAfterClick, 500);
 
+    // Ending the session releases the agent's focus and ring on the customer.
+    await agent.locator('md-outlined-button.cb-end').first().click();
+    await agent.waitForTimeout(1000);
+    const afterEnd = await customer.evaluate(() => ({
+      active: document.activeElement?.id ?? '',
+      ring: !!document.querySelector('.cbx-focus-ring')
+    }));
+    check('focus is released when the session ends', afterEnd.active, '');
+    check('focus ring is removed when the session ends', afterEnd.ring, false);
+
     check('no console errors', errors.join(' | '), '');
   } catch (error) {
     failures.push(error.stack ?? String(error));
