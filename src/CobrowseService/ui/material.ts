@@ -7,3 +7,4 @@ import '@material/web/button/text-button.js';
 import '@material/web/divider/divider.js';
 import '@material/web/textfield/outlined-text-field.js';
 import './components/relative-time';
+import './components/snackbar';

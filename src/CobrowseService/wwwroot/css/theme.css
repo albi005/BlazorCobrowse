@@ -168,20 +168,6 @@ code {
 .muted { color: var(--md-sys-color-on-surface-variant); }
 .small { font-size: .82rem; }
 
-.notice {
-  margin: 0 0 1rem;
-  padding: .65rem .9rem;
-  border-radius: 12px;
-  font-size: .88rem;
-  background: var(--md-sys-color-secondary-container);
-  color: var(--md-sys-color-on-secondary-container);
-}
-
-.notice.error {
-  background: var(--md-sys-color-error-container);
-  color: var(--md-sys-color-on-error-container);
-}
-
 /* ----------------------------------------------------------- home / general */
 
 .home-hero {

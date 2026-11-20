@@ -216,6 +216,14 @@ const field = (customer, id) => customer.evaluate((fieldId) => {
     check('focus is released when the session ends', afterEnd.active, '');
     check('focus ring is removed when the session ends', afterEnd.ring, false);
 
+    const snack = await agent.evaluate(() => {
+      const el = document.querySelector('cb-snackbar');
+      const surface = el?.shadowRoot?.querySelector('.surface');
+      return { message: el?.message ?? '', open: !!surface?.classList.contains('open') };
+    });
+    check('session end shows a snackbar', snack.open, true);
+    check('snackbar carries the end message', snack.message.length > 0, true);
+
     check('no console errors', errors.join(' | '), '');
   } catch (error) {
     failures.push(error.stack ?? String(error));

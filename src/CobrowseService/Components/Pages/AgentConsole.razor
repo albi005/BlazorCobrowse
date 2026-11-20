@@ -13,16 +13,6 @@
 <PageTitle>Agent console</PageTitle>
 
 <div class="agent-page">
-    @if (_error is not null)
-    {
-        <p class="notice error">@_error</p>
-    }
-
-    @if (_notice is not null)
-    {
-        <p class="notice">@_notice</p>
-    }
-
     <div class="agent-layout">
         <aside class="cb-sessions">
             <div class="sessions-panel">
@@ -176,9 +166,11 @@
                 </div>
             }
         </section>
-
-        
     </div>
+
+    <cb-snackbar message="@(_error ?? _notice ?? "")"
+                 tone="@(_error is not null ? "error" : "info")"
+                 stamp="@_snackStamp"></cb-snackbar>
 </div>
 
 @code {
@@ -189,6 +181,7 @@
     private string? _error;
     private string? _notice;
     private bool _connecting;
+    private int _snackStamp;
     private DotNetObjectReference<AgentConsole>? _self;
 
     protected override void OnInitialized()
@@ -208,6 +201,16 @@
 
     private IEnumerable<SupportRequestSnapshot> OtherActive =>
         _active.Where(request => request.Id != _selectedRequestId);
+
+    private void ShowSnack(string message, bool isError = false)
+    {
+        if (isError)
+            _error = message;
+        else
+            _notice = message;
+
+        _snackStamp++;
+    }
 
     private static string PageLabel(SupportRequestSnapshot request) =>
         request.Page?.Title ?? request.Page?.Url ?? "—";
@@ -239,7 +242,7 @@
             var outcome = await Requests.AcceptAsync(id, _agent);
             if (!outcome.Success)
             {
-                _error = outcome.ErrorMessage;
+                ShowSnack(outcome.ErrorMessage ?? "Could not accept the request.", true);
                 return;
             }
 
@@ -247,7 +250,7 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
+            ShowSnack(ex.Message, true);
         }
         finally
         {
@@ -270,7 +273,7 @@
         }
         catch (Exception ex)
         {
-            _error = ex.Message;
+            ShowSnack(ex.Message, true);
         }
         finally
         {
@@ -314,7 +317,7 @@
     public Task OnAgentState(string state, string? message)
     {
         if (state is "error" or "disconnected")
-            _error = message;
+            ShowSnack(message ?? "The connection to the support service was lost.", true);
 
         StateHasChanged();
         return Task.CompletedTask;
@@ -348,7 +351,7 @@
     public Task OnSessionEnded(string reason, string? message)
     {
         _selectedRequestId = null;
-        _notice = message ?? "The support session ended.";
+        ShowSnack(message ?? "The support session ended.");
         Refresh();
         return Task.CompletedTask;
     }
